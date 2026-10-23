@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit listing' if mode == 'edit' else 'List a crop' }}{% endblock %}
+
+{% macro val(name, default='') %}{{ form.get(name) if form.get(name) else (crop[name] if crop and crop[name] is not none else default) }}{% endmacro %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-{{ 'pencil' if mode == 'edit' else 'plus-circle' }}"></i>
+          {{ 'Edit listing' if mode == 'edit' else 'List a crop for sale' }}</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+
+          <h6 class="fw-bold mb-3">{{ t("What are you selling?") }}</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Crop") }} <span class="text-danger">*</span></label>
+              <select name="crop_name" id="crop_name" class="form-select {{ 'is-invalid' if errors.get('crop_name') }}"
+                      {{ 'disabled' if mode == 'edit' }} required>
+                <option value="">{{ t("— select the crop —") }}</option>
+                {% for c in CROP_LIST %}
+                  <option value="{{ c }}" {{ 'selected' if (crop and crop.crop_name == c) or form.get('crop_name') == c }}>{{ crop_name(c) }}</option>
+                {% endfor %}
+              </select>
+              {% if mode == 'edit' %}
+                <input type="hidden" name="crop_name" value="{{ crop_name(crop.crop_name) }}">
+                <div class="form-text">{{ t("The crop type cannot be changed — create a new listing instead.") }}</div>
+              {% endif %}
+              {% if errors.get('crop_name') %}<div class="invalid-feedback">{{ errors['crop_name'] }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Variety") }}</label>
+              <input class="form-control" name="variety" value="{{ val('variety') }}"
+                     placeholder="{{ t("e.g. Thompson Seedless, Bhagwa") }}">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">{{ t("Quantity (quintal)") }} <span class="text-danger">*</span></label>
+              <input type="number" step="0.1" min="0.1" name="quantity" id="quantity"
+                     class="form-control {{ 'is-invalid' if errors.get('quantity') }}"
+                     value="{{ val('quantity') }}" required>
+              {% if errors.get('quantity') %}<div class="invalid-feedback">{{ errors['quantity'] }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">{{ t("Harvest date") }}</label>
+              <input type="date" class="form-control" name="harvest_date"
+                     value="{{ crop.harvest_date.isoformat() if crop and crop.harvest_date else form.get('harvest_date','') }}">
+            </div>
+
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="organic" id="organic"
+                       {{ 'checked' if (crop and crop.organic) or form.get('organic') }}>
+                <label class="form-check-label" for="organic">{{ t("Organically grown") }}</label>
+                <div class="form-text">{{ t("Adds a 15% premium to the suggested price.") }}</div>
+              </div>
+            </div>
+          </div>
+
+          <h6 class="fw-bold mt-4 mb-3">{{ t("Where is the lot?") }}</h6>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">{{ t("State") }}</label>
+              <input class="form-control" name="state" id="state"
+                     value="{{ val('state', current_user.state) }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ t("District") }}</label>
+              <input class="form-control" name="district" id="district"
+                     value="{{ val('district', current_user.district) }}">
+              <div class="form-text">{{ t("Used for the price band.") }}</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ t("Nearest market / APMC") }}</label>
+              <input class="form-control" name="market" value="{{ val('market') }}"
+                     placeholder="{{ t("e.g. Lasalgaon") }}">
+            </div>
+          </div>
+
+          <h6 class="fw-bold mt-4 mb-3">{{ t("Photos for AI grading") }}</h6>
+          {% if mode == 'edit' and crop.photos %}
+            <div class="mb-2">
+              {% for p in crop.photos %}
+                <div class="d-inline-block position-relative me-2 mb-2">
+                  <img src="{{ url_for('static', filename='uploads/crops/' ~ p.filename) }}" class="av-thumb border">
+                  {% if p.grade %}<span class="badge bg-dark position-absolute bottom-0 start-0">{{ p.grade }}</span>{% endif %}
+                </div>
+              {% endfor %}
+            </div>
+            <div class="form-text mb-2">{{ crop.photos|length }} photo(s) already uploaded.
+              Adding more will re-run the grading.</div>
+          {% endif %}
+          <input type="file" class="form-control {{ 'is-invalid' if errors.get('photos') }}"
+                 name="photos" id="photos" accept="image/*" multiple
+                 {{ 'required' if mode != 'edit' }}>
+          {% if errors.get('photos') %}<div class="invalid-feedback">{{ errors['photos'] }}</div>
+          {% else %}<div class="form-text">{{ t("Up to 5 photos, JPG or PNG, max 8 MB each.
+            Daylight, close-up, produce filling the frame.") }}</div>{% endif %}
+          <div id="photoPreview" class="mt-2"></div>
+
+          <h6 class="fw-bold mt-4 mb-3">{{ t("Your price") }}</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Expected price (₹ per quintal)") }} <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">₹</span>
+                <input type="number" step="1" min="1" name="expected_price" id="expected_price"
+                       class="form-control {{ 'is-invalid' if errors.get('expected_price') }}"
+                       value="{{ val('expected_price') }}" required>
+                <span class="input-group-text">/{{ t('quintal') }}</span>
+              </div>
+              {% if errors.get('expected_price') %}<div class="invalid-feedback">{{ errors['expected_price'] }}</div>{% endif %}
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">{{ t("Description / notes for buyers") }}</label>
+            <textarea class="form-control" name="description" rows="3"
+                      placeholder="{{ t("Pruning date, irrigation, spray schedule, packing available, transport…") }}">{{ val('description') }}</textarea>
+          </div>
+
+          <div class="d-flex justify-content-between mt-4">
+            <a href="{{ url_for('farmer.crop_detail', crop_id=crop.id) if crop else url_for('farmer.crops') }}"
+               class="btn btn-link text-muted">{{ t("Cancel") }}</a>
+            <button class="btn btn-success px-4">
+              <i class="bi bi-cpu"></i> {{ 'Save changes' if mode == 'edit' else 'Create listing & run AI grading' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== live AI price helper ====== -->
+  <div class="col-lg-4">
+    <div class="card av-sticky">
+      <div class="card-header fw-semibold"><i class="bi bi-robot"></i> {{ t("AI price assistant") }}</div>
+      <div class="card-body" id="priceHelper"
+           data-endpoint="{{ url_for('farmer.api_price_suggestion') }}">
+        <div class="text-muted small">{{ t("Choose a crop to see the AI price suggestion.") }}</div>
+      </div>
+    </div>
+
+    <div class="alert alert-light border mt-3 small">
+      <strong><i class="bi bi-info-circle"></i> {{ t("What happens when you submit") }}</strong>
+      <ol class="ps-3 mb-0 mt-1">
+        <li>{{ t("Your photos are saved and analysed by the computer-vision grader.") }}</li>
+        <li>{{ t("A quality score and Grade A/B/C are assigned to the lot.") }}</li>
+        <li>{{ t("The price band is recalculated using that grade.") }}</li>
+        <li>{{ t("If the crop needs a certificate, you will be asked to upload it next.") }}</li>
+      </ol>
+    </div>
+  </div>
+</div>
+{% endblock %}

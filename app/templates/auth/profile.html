@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ t("Profile") }}{% endblock %}
+
+{% block content %}
+<h4 class="fw-bold mb-3"><i class="bi bi-person-gear"></i> {{ t("Profile &amp; settings") }}</h4>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">{{ t("Account details") }}</div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="action" value="details">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Full name") }}</label>
+              <input class="form-control" name="full_name" value="{{ current_user.full_name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Email") }}</label>
+              <input class="form-control" value="{{ current_user.email }}" disabled>
+              <div class="form-text">{{ t("Email and mobile are your login IDs and cannot be changed here.") }}</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t("State") }}</label>
+              <input class="form-control" name="state" value="{{ current_user.state or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t("District") }}</label>
+              <input class="form-control" name="district" value="{{ current_user.district or '' }}">
+              <div class="form-text">{{ t("Drives your regional price and demand insights.") }}</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Taluka") }}</label>
+              <input class="form-control" name="taluka" value="{{ current_user.taluka or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t("PIN code") }}</label>
+              <input class="form-control" name="pincode" value="{{ current_user.pincode or '' }}">
+            </div>
+
+            {% if current_user.is_farmer %}
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Farm size (acres)") }}</label>
+              <input class="form-control" type="number" step="0.1" name="farm_size_acres"
+                     value="{{ current_user.farm_size_acres or '' }}">
+            </div>
+            {% else %}
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Company / firm") }}</label>
+              <input class="form-control" name="company_name" value="{{ current_user.company_name or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t('Type of buyer') }}</label>
+              <select class="form-select" name="buyer_type">
+                {% for bt in buyer_types %}
+                  <option value="{{ bt }}" {{ 'selected' if current_user.buyer_type == bt }}>{{ t(bt) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t("GST number") }}</label>
+              <input class="form-control" name="gst_number" value="{{ current_user.gst_number or '' }}">
+            </div>
+            {% endif %}
+          </div>
+          <button class="btn btn-success mt-3"><i class="bi bi-save"></i> {{ t("Save changes") }}</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header fw-semibold">{{ t("Change password") }}</div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="action" value="password">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">{{ t("Current password") }}</label>
+              <input type="password" class="form-control" name="current_password" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ t("New password") }}</label>
+              <input type="password" class="form-control" name="new_password" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ t("Confirm new password") }}</label>
+              <input type="password" class="form-control" name="confirm_password" required>
+            </div>
+          </div>
+          <button class="btn btn-outline-success mt-3"><i class="bi bi-key"></i> {{ t("Update password") }}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <i class="bi bi-person-circle display-3 text-success"></i>
+        <h5 class="fw-bold mt-2 mb-0">{{ current_user.full_name }}</h5>
+        <span class="badge bg-{{ 'success' if current_user.is_farmer else 'info' }} text-uppercase">{{ current_user.role }}</span>
+        <hr>
+        <ul class="list-unstyled small text-start mb-0">
+          <li><i class="bi bi-envelope text-muted"></i> {{ current_user.email }}</li>
+          <li><i class="bi bi-telephone text-muted"></i> {{ current_user.phone }}</li>
+          <li><i class="bi bi-geo-alt text-muted"></i> {{ current_user.location_label }}</li>
+          <li><i class="bi bi-calendar3 text-muted"></i> {{ t("Member since") }} {{ current_user.created_at|nicedate }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

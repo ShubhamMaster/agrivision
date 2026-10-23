@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import stat, grade_badge, cert_badge, empty, deal_badge %}
+{% block title %}{{ t("Buyer dashboard") }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0">{{ current_user.company_name or current_user.full_name }}</h4>
+    <div class="text-muted small"><i class="bi bi-geo-alt"></i> {{ current_user.location_label }}
+      {% if current_user.buyer_type %}· {{ current_user.buyer_type }}{% endif %}</div>
+  </div>
+  <div class="btn-group">
+    <a href="{{ url_for('buyer.browse') }}" class="btn btn-outline-success"><i class="bi bi-shop"></i> {{ t("Browse marketplace") }}</a>
+    <a href="{{ url_for('buyer.new_requirement') }}" class="btn btn-success"><i class="bi bi-plus-circle"></i> {{ t("Post a requirement") }}</a>
+  </div>
+</div>
+
+<div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-4">
+  {{ stat('card-checklist', t('Open requirements'), stats.open_requirements, 'success') }}
+  {{ stat('send', t('Requests sent'), stats.sent, 'primary') }}
+  {{ stat('inbox', t('Offers to review'), stats.offers_received, 'danger') }}
+  {{ stat('check2-circle', t('Deals closed'), stats.accepted, 'info') }}
+  {{ stat('currency-rupee', t('Committed value'), stats.committed_value|rupee, 'warning') }}
+  {{ stat('card-list', t('Total requirements'), stats.requirements, 'secondary') }}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <!-- offers waiting -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-inbox"></i> {{ t("Farmer offers waiting for your answer") }}</span>
+        <a href="{{ url_for('deals.inbox') }}" class="btn btn-sm btn-outline-secondary">{{ t("All deals") }}</a>
+      </div>
+      <div class="card-body p-0">
+        {% if not pending_offers %}
+          <p class="text-muted small p-3 mb-0">{{ t("No offers pending. Post a requirement and farmers will come to you.") }}</p>
+        {% else %}
+        <div class="list-group list-group-flush">
+          {% for d in pending_offers %}
+          <a href="{{ url_for('deals.detail', deal_id=d.id) }}" class="list-group-item list-group-item-action">
+            <div class="d-flex justify-content-between">
+              <div>
+                <strong>{{ d.farmer.full_name }}</strong> {{ t("offers") }}
+                <strong>{{ '%g'|format(d.quantity) }} q</strong> of {{ d.crop.crop_name if d.crop else '—' }}
+                {% if d.crop %}{{ grade_badge(d.crop.ai_grade, d.crop.ai_quality_score, inline=True) }}{% endif %}
+                <div class="small text-muted">{{ d.offered_price|rupee }}/quintal · total {{ d.total_value|rupee }}
+                  · {{ d.farmer.district or '' }}</div>
+              </div>
+              <small class="text-muted">{{ d.created_at|ago }}</small>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- recommended lots -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-stars"></i> {{ t("Lots that match your open requirements") }}
+      </div>
+      <div class="card-body p-0">
+        {% if not recommended %}
+          <p class="text-muted small p-3 mb-0">
+            {{ t("Nothing matches yet. Post a requirement, or") }}
+            <a href="{{ url_for('buyer.browse') }}">{{ t("browse the marketplace") }}</a> {{ t("directly.") }}</p>
+        {% else %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr>
+              <th>{{ t("Lot") }}</th><th>{{ t("Grade") }}</th><th>{{ t("Qty") }}</th><th>{{ t("Price") }}</th><th>{{ t("For requirement") }}</th><th></th>
+            </tr></thead>
+            <tbody>
+            {% for r in recommended %}
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  {% if r.crop.cover_photo %}
+                    <img src="{{ url_for('static', filename='uploads/crops/' ~ r.crop.cover_photo) }}"
+                         class="av-thumb" style="width:40px;height:40px">
+                  {% endif %}
+                  <div>
+                    <div class="fw-semibold">{{ crop_name(r.crop.crop_name) }}</div>
+                    <div class="small text-muted">{{ r.crop.farmer.full_name }} · {{ r.crop.district or '' }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ grade_badge(r.crop.ai_grade, r.crop.ai_quality_score, inline=True) }}</td>
+              <td>{{ '%g'|format(r.crop.quantity) }} q</td>
+              <td class="fw-semibold">{{ r.crop.expected_price|rupee }}</td>
+              <td class="small text-muted">{{ r.requirement.crop_name }} ({{ '%g'|format(r.requirement.quantity) }} q)</td>
+              <td class="text-end">
+                <a href="{{ url_for('buyer.crop_detail', crop_id=r.crop.id) }}" class="btn btn-sm btn-success">{{ t("View") }}</a>
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-card-checklist"></i> {{ t("My requirements") }}</span>
+        <a href="{{ url_for('buyer.requirements') }}" class="btn btn-sm btn-outline-secondary">{{ t("All") }}</a>
+      </div>
+      <div class="card-body p-0">
+        {% if not reqs %}
+          <p class="text-muted small p-3 mb-0">{{ t("You have not posted any requirement yet.") }}</p>
+        {% else %}
+        <div class="list-group list-group-flush">
+          {% for r in reqs %}
+          <a href="{{ url_for('buyer.requirement_detail', req_id=r.id) }}"
+             class="list-group-item list-group-item-action">
+            <div class="d-flex justify-content-between">
+              <div>
+                <strong>{{ crop_name(r.crop_name) }}</strong> · {{ '%g'|format(r.quantity) }} q
+                <div class="small text-muted">{{ t("Grade") }} {{ r.min_grade }}+
+                  {% if r.price_max %}· up to {{ r.price_max|rupee }}/q{% endif %}</div>
+              </div>
+              <span class="badge bg-{{ 'success' if r.status == 'open' else 'secondary' }}">{{ t(r.status) }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h6 class="fw-bold"><i class="bi bi-lightbulb"></i> {{ t("Buying smart on AgriVision") }}</h6>
+        <ul class="small mb-0 ps-3">
+          <li>{{ t("Every lot carries an AI grade — filter on it instead of travelling to inspect.") }}</li>
+          <li>{{ t("The fair-price band tells you when an asking price is above the market.") }}</li>
+          <li>{{ t("Tick") }} <em>{{ t("certificate verified") }}</em> {{ t("when you need export-grade paperwork.") }}</li>
+          <li>{{ t("Compare up to four lots side by side before you commit.") }}</li>
+          <li>{{ t("Check the demand index — it tells you whether to buy now or wait.") }}</li>
+        </ul>
+        <a href="{{ url_for('insights.overview') }}" class="btn btn-sm btn-outline-success w-100 mt-2">
+          {{ t("Market insights") }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

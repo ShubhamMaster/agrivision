@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ t('How to use AgriVision') }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+
+    <div class="av-guide-head">
+      <span class="av-flag av-flag-ok mb-2">
+        {{ t('Farmer') if current_user.is_farmer else t('Buyer') }}
+      </span>
+      <h2 class="fw-bold mb-1">
+        {% if first_run %}
+          {{ t('Welcome to AgriVision') }}, {{ current_user.full_name.split()[0] }}
+        {% else %}
+          {{ t('How to use AgriVision') }}
+        {% endif %}
+      </h2>
+      <p class="text-muted mb-0">
+        {% if current_user.is_farmer %}
+          {{ t('Four things to know before you list your first crop. It takes a minute to read.') }}
+        {% else %}
+          {{ t('Four things to know before you buy your first lot. It takes a minute to read.') }}
+        {% endif %}
+      </p>
+    </div>
+
+    <ol class="av-guide-steps">
+      {% for s in steps %}
+      <li class="av-guide-step">
+        <div class="av-guide-icon"><i class="bi bi-{{ s.icon }}"></i></div>
+        <div>
+          <h3 class="av-guide-title">{{ t(s.title) }}</h3>
+          <p class="av-guide-body">{{ t(s.body) }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+
+    <div class="av-guide-actions">
+      <form method="post" action="{{ url_for('main.guide_done') }}" class="d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-success px-4">
+          {% if current_user.is_farmer %}
+            <i class="bi bi-plus-circle"></i> {{ t('List my first crop') }}
+          {% else %}
+            <i class="bi bi-shop"></i> {{ t('Browse the marketplace') }}
+          {% endif %}
+        </button>
+
+        {% if first_run %}
+          <button name="skip" value="1" class="btn btn-link text-muted">{{ t('Skip for now') }}</button>
+        {% else %}
+          <a href="{{ url_for(current_user.role + '.dashboard') }}"
+             class="btn btn-link text-muted">{{ t('Back to dashboard') }}</a>
+        {% endif %}
+      </form>
+
+      {% if first_run %}
+        <p class="av-meta mt-2 mb-0">
+          {{ t('You can open this guide again any time from the menu under your name.') }}
+        </p>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

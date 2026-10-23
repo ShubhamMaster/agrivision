@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import grade_badge, cert_badge, price_band, demand_meter, crop_card %}
+{% block title %}{{ crop_name(crop.crop_name) }} from {{ crop.farmer.full_name }}{% endblock %}
+
+{# A sub-score bar. The colour reports how good the score is rather than
+   labelling which attribute it belongs to — a buyer scanning four bars wants
+   to see which one is weak, not which one is "the blue one". #}
+{% macro metric(label, value) %}
+{% set v = value or 0 %}
+{% set tone = 'var(--av-green)' if v >= 75 else ('#7fa86a' if v >= 60 else ('var(--av-amber)' if v >= 45 else 'var(--av-red)')) %}
+<div class="av-metric">
+  <div class="av-metric-head"><span>{{ label }}</span><span class="fw-semibold av-num">{{ '%.0f'|format(v) }}/100</span></div>
+  <div class="av-metric-track"><div class="av-metric-fill" style="width: {{ v }}%; background: {{ tone }}"></div></div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<nav class="small mb-2">
+  <a href="{{ url_for('buyer.browse') }}" class="text-decoration-none text-muted">
+    <i class="bi bi-arrow-left"></i> {{ t("Back to marketplace") }}</a>
+</nav>
+
+<div class="row g-4">
+  <!-- ======== LEFT ======== -->
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="av-gallery-main">
+          {% if crop.cover_photo %}
+            <img id="galleryMain" alt="{{ crop_name(crop.crop_name) }}{% if crop.variety %}, {{ crop.variety }}{% endif %}"
+                 src="{{ url_for('static', filename='uploads/crops/' ~ crop.cover_photo) }}">
+          {% else %}
+            <i class="bi bi-image av-plate-empty"></i>
+          {% endif %}
+          {{ grade_badge(crop.ai_grade, crop.ai_quality_score) }}
+        </div>
+
+        {% if crop.photos|length > 1 %}
+        <div class="av-thumb-strip" data-gallery>
+          {% for p in crop.photos %}
+            <img class="av-thumb{{ ' is-active' if loop.first }}" tabindex="0" role="button"
+                 src="{{ url_for('static', filename='uploads/crops/' ~ p.filename) }}"
+                 alt="View photo {{ loop.index }} of {{ crop.photos|length }}"
+                 title="Photo {{ loop.index }}{% if p.grade %} — graded {{ p.grade }}, {{ '%.0f'|format(p.quality_score) }}/100{% endif %}">
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between align-items-start mt-3 mb-2">
+          <h4 class="fw-bold mb-0">{{ crop_name(crop.crop_name) }}
+            {% if crop.variety %}<span class="av-variety fw-normal">{{ crop.variety }}</span>{% endif %}</h4>
+        </div>
+        <div class="d-flex gap-1 flex-wrap mb-3">
+          {{ cert_badge(crop) }}
+          {% if crop.organic %}<span class="av-flag av-flag-ok"><i class="bi bi-leaf"></i> {{ t("Organic") }}</span>{% endif %}
+          <span class="av-flag av-flag-plain">{{ crop.district or '' }}{% if crop.market %} · {{ crop.market }}{% endif %}</span>
+          <span class="av-flag av-flag-plain">{{ t("Harvested") }} {{ crop.harvest_date|nicedate }}</span>
+        </div>
+
+        {% if crop.description %}<p class="mb-0">{{ crop.description }}</p>{% endif %}
+      </div>
+    </div>
+
+    <!-- quality -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold"><i class="bi bi-cpu"></i> {{ t("Independent AI quality assessment") }}</div>
+      <div class="card-body">
+        {% set graded = crop.photos|selectattr('quality_score')|list %}
+        {% if graded %}
+          {{ metric(t('Colour match for ') ~ crop.crop_name, (graded|sum(attribute='colour_score')) / graded|length) }}
+          {{ metric(t('Uniformity across the lot'), (graded|sum(attribute='uniformity_score')) / graded|length) }}
+          {{ metric(t('Freedom from defects'), (graded|sum(attribute='defect_score')) / graded|length) }}
+          {{ metric(t('Unit size & consistency'), (graded|sum(attribute='size_score')) / graded|length) }}
+          <div class="alert alert-light border mt-3 mb-0 small">{{ crop.ai_summary }}</div>
+        {% else %}
+          <p class="text-muted small mb-0">{{ t("This lot has not been graded automatically.") }}</p>
+        {% endif %}
+
+        {% if crop.certificates %}
+        <hr>
+        <h6 class="fw-bold mb-2">{{ t("Certificates") }}</h6>
+        {% for c in crop.certificates %}
+          <div class="d-flex justify-content-between align-items-center small border-bottom py-2">
+            <div>
+              <span class="badge bg-{{ {'verified':'success','pending':'warning','rejected':'danger'}[c.status] }}">{{ t(c.status) }}</span>
+              {{ c.cert_type or 'Certificate' }} · {{ c.cert_number or 'no number' }}
+              {% if c.expiry_date %}<span class="text-muted">· valid to {{ c.expiry_date|nicedate }}</span>{% endif %}
+            </div>
+            {% if existing %}
+              <a href="{{ url_for('farmer.certificate_report', cert_id=c.id) }}" class="btn btn-sm btn-outline-secondary">{{ t("Report") }}</a>
+            {% else %}
+              <span class="text-muted" title="{{ t("Send a request to see the full verification report") }}">
+                <i class="bi bi-lock"></i></span>
+            {% endif %}
+          </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- seller -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold"><i class="bi bi-person"></i> {{ t("The seller") }}</div>
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-3">
+          <i class="bi bi-person-circle display-6 text-success"></i>
+          <div>
+            <h6 class="fw-bold mb-0">{{ crop.farmer.full_name }}</h6>
+            <div class="small text-muted">
+              <i class="bi bi-geo-alt"></i> {{ crop.farmer.location_label }}<br>
+              <i class="bi bi-calendar3"></i> {{ t("On AgriVision since") }} {{ crop.farmer.created_at|nicedate }}
+              {% if crop.farmer.farm_size_acres %}· {{ crop.farmer.farm_size_acres }} {{ t("acre farm") }}{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="small text-muted mt-2">
+          {{ t("Contact details are shared once a request is accepted.") }}
+        </div>
+      </div>
+    </div>
+
+    {% if other_lots %}
+    <h6 class="fw-bold mb-2">{{ t("Other") }} {{ crop_name(crop.crop_name) }} {{ t("lots") }}</h6>
+    <div class="row g-3">
+      {% for c in other_lots %}{{ crop_card(c, url_for('buyer.crop_detail', crop_id=c.id)) }}{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ======== RIGHT ======== -->
+  <div class="col-lg-5">
+    <div class="card mb-4 av-sticky">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-end">
+          <div>
+            <div class="small text-muted">{{ t("Asking price") }}</div>
+            <div class="display-6 fw-bold text-success">{{ crop.expected_price|rupee }}<span class="fs-6 fw-normal text-muted">/{{ t('quintal') }}</span></div>
+          </div>
+          <div class="text-end">
+            <div class="small text-muted">{{ t("Available") }}</div>
+            <div class="fs-5 fw-semibold">{{ '%g'|format(crop.quantity) }} q</div>
+          </div>
+        </div>
+
+        <div class="alert alert-{{ price_note.colour }} py-2 small mt-2">{{ price_note.text }}</div>
+        {{ price_band(band, crop.expected_price) }}
+
+        <hr>
+        {% if existing %}
+          <div class="alert alert-info small mb-2">
+            {{ t("You have a pending request on this lot for") }} {{ '%g'|format(existing.quantity) }} quintal.
+          </div>
+          <a href="{{ url_for('deals.detail', deal_id=existing.id) }}" class="btn btn-outline-success w-100">
+            {{ t("Open the request thread") }}</a>
+        {% elif crop.status != 'available' %}
+          <div class="alert alert-secondary small mb-0">{{ t("This lot is") }} {{ t(crop.status) }} {{ t("and cannot be requested") }}.</div>
+        {% elif crop.certificate_required and crop.certificate_status != 'verified' %}
+          <div class="alert alert-warning small mb-0">
+            <i class="bi bi-exclamation-triangle"></i>
+            {{ crop_name(crop.crop_name) }} needs a verified quality certificate before it can be traded.
+            The farmer has not completed verification yet.
+          </div>
+        {% else %}
+          <h6 class="fw-bold">{{ t("Send a buying request") }}</h6>
+          <form method="post" action="{{ url_for('buyer.send_request', crop_id=crop.id) }}">
+            {% if my_reqs %}
+            <div class="mb-2">
+              <label class="form-label small">{{ t("Link to one of my requirements") }}</label>
+              <select name="requirement_id" class="form-select form-select-sm">
+                <option value="">{{ t("— not linked —") }}</option>
+                {% for r in my_reqs %}
+                  <option value="{{ r.id }}">{{ crop_name(r.crop_name) }} · {{ '%g'|format(r.quantity) }} q</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small">{{ t("Quantity (quintal)") }}</label>
+                <input type="number" step="0.1" min="0.1" max="{{ crop.quantity }}" name="quantity"
+                       class="form-control form-control-sm" value="{{ '%g'|format(crop.quantity) }}" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label small">{{ t("Your offer (₹/quintal)") }}</label>
+                <input type="number" step="1" name="offered_price" class="form-control form-control-sm"
+                       value="{{ crop.expected_price|int }}" required>
+              </div>
+            </div>
+            <div class="mt-2">
+              <label class="form-label small">{{ t("Message to the farmer") }}</label>
+              <textarea name="message" rows="3" class="form-control form-control-sm"
+                        placeholder="{{ t("When you need delivery, packing requirement, payment terms…") }}"></textarea>
+            </div>
+            <button class="btn btn-success w-100 mt-2"><i class="bi bi-send"></i> {{ t("Send buying request") }}</button>
+            <div class="form-text">{{ t("The farmer can accept, decline or negotiate. Nothing is charged here.") }}</div>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-graph-up-arrow"></i> {{ t("Market context") }}</div>
+      <div class="card-body">
+        {{ demand_meter(demand) }}
+        <p class="small text-muted mt-3 mb-2">{{ demand.advice }}</p>
+        {% if trend.ok %}
+        <table class="table table-sm small mb-2">
+          <tr><td class="text-muted">{{ t("Latest modal price") }}</td><td class="text-end fw-semibold">{{ trend.latest|rupee }}</td></tr>
+          <tr><td class="text-muted">{{ t("Period average") }}</td><td class="text-end">{{ trend.average|rupee }}</td></tr>
+          <tr><td class="text-muted">{{ t("Period range") }}</td><td class="text-end">{{ trend.period_low|rupee }} – {{ trend.period_high|rupee }}</td></tr>
+          <tr><td class="text-muted">{{ t("Trend") }}</td>
+              <td class="text-end text-{{ 'success' if trend.change_pct > 0 else 'danger' }}">
+                {{ trend.direction }} ({{ trend.change_pct }}%)</td></tr>
+        </table>
+        <div class="small text-muted">{{ t("Scope") }}: {{ trend.scope }}</div>
+        {% endif %}
+        <a href="{{ url_for('insights.crop_report', crop_name=crop.crop_name) }}"
+           class="btn btn-sm btn-outline-success w-100 mt-2">{{ t("Full") }} {{ crop_name(crop.crop_name) }} {{ t("report") }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

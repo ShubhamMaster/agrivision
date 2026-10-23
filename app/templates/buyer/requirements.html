@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import empty %}
+{% block title %}{{ t("My requirements") }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="fw-bold mb-0"><i class="bi bi-card-checklist"></i> {{ t("My requirements") }}</h4>
+  <a href="{{ url_for('buyer.new_requirement') }}" class="btn btn-success">
+    <i class="bi bi-plus-circle"></i> {{ t("Post a requirement") }}</a>
+</div>
+
+<ul class="nav nav-pills mb-3">
+  {% for key, label in [('all','All'), ('open','Open'), ('closed','Closed')] %}
+    <li class="nav-item">
+      <a class="nav-link {{ 'active' if status == key }}"
+         href="{{ url_for('buyer.requirements', status=key) }}">{{ label }}</a></li>
+  {% endfor %}
+</ul>
+
+{% if not items %}
+  {{ empty('megaphone', t('No requirements posted'),
+           t('Tell the platform what you need and matching farmers are notified automatically.'),
+           url_for('buyer.new_requirement'), 'Post a requirement') }}
+{% else %}
+<div class="row g-3">
+  {% for r in items %}
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <h6 class="fw-bold mb-0">
+            <a href="{{ url_for('buyer.requirement_detail', req_id=r.id) }}" class="text-decoration-none text-dark">
+              {{ crop_name(r.crop_name) }}{% if r.variety %} · {{ r.variety }}{% endif %}</a>
+          </h6>
+          <div>
+            {% if counts.get(r.id) %}
+              <span class="badge bg-danger">{{ counts[r.id] }} new offer(s)</span>
+            {% endif %}
+            <span class="badge bg-{{ 'success' if r.status == 'open' else 'secondary' }}">{{ t(r.status) }}</span>
+          </div>
+        </div>
+
+        <div class="row g-2 mt-2 small">
+          <div class="col-6"><span class="text-muted">{{ t("Quantity") }}</span><br><strong>{{ '%g'|format(r.quantity) }} quintal</strong></div>
+          <div class="col-6"><span class="text-muted">{{ t("Budget") }}</span><br>
+            <strong>{% if r.price_max %}{{ t("up to") }} {{ r.price_max|rupee }}/q{% else %}{{ t("open") }}{% endif %}</strong></div>
+          <div class="col-6"><span class="text-muted">{{ t("Minimum grade") }}</span><br><strong>{{ t("Grade") }} {{ r.min_grade }}</strong></div>
+          <div class="col-6"><span class="text-muted">{{ t("Needed by") }}</span><br>
+            <strong class="{{ 'text-danger' if r.is_expired }}">{{ r.needed_by|nicedate }}</strong></div>
+        </div>
+
+        <div class="mt-2">
+          {% if r.organic_only %}<span class="badge bg-success-subtle text-success">{{ t("Organic only") }}</span>{% endif %}
+          {% if r.certificate_mandatory %}<span class="badge bg-warning-subtle text-warning">{{ t("Certificate required") }}</span>{% endif %}
+          <span class="badge bg-light text-muted">{{ t("Posted") }} {{ r.created_at|ago }}</span>
+        </div>
+
+        <a href="{{ url_for('buyer.requirement_detail', req_id=r.id) }}"
+           class="btn btn-sm btn-outline-success w-100 mt-3">{{ t("Open &amp; see matching lots") }}</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

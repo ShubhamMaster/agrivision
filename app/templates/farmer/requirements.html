@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import empty, grade_badge %}
+{% block title %}{{ t("Buyer requirements") }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-megaphone"></i> {{ t("What buyers are looking for") }}</h4>
+    <div class="small text-muted">{{ t("Requirements that match one of your lots are shown first.") }}</div>
+  </div>
+  <form class="d-flex gap-2">
+    <select name="crop" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="">{{ t("All crops") }}</option>
+      {% for c in CROP_LIST %}
+        <option value="{{ c }}" {{ 'selected' if crop_filter == c }}>{{ crop_name(c) }}</option>
+      {% endfor %}
+    </select>
+    <div class="form-check form-switch text-nowrap mt-1">
+      <input class="form-check-input" type="checkbox" name="matching" value="1" id="mt"
+             {{ 'checked' if only_matching }} onchange="this.form.submit()">
+      <label class="form-check-label small" for="mt">{{ t("Only ones I can fulfil") }}</label>
+    </div>
+  </form>
+</div>
+
+{% if not rows %}
+  {{ empty('megaphone', t('No requirements found'), t('No buyer requirement matches this filter right now.')) }}
+{% else %}
+<div class="row g-3">
+  {% for row in rows %}
+  {% set r = row.req %}
+  <div class="col-md-6">
+    <div class="card h-100 {{ 'border-start border-success border-4' if row.matched }}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h6 class="fw-bold mb-0">{{ crop_name(r.crop_name) }}
+              {% if r.variety %}<span class="text-muted fw-normal">· {{ r.variety }}</span>{% endif %}</h6>
+            <div class="small text-muted">
+              {{ r.buyer.company_name or r.buyer.full_name }}
+              {% if r.buyer.buyer_type %}<span class="badge bg-light text-muted">{{ r.buyer.buyer_type }}</span>{% endif %}
+            </div>
+          </div>
+          {% if row.matched %}
+            <span class="badge bg-success"><i class="bi bi-check2-circle"></i> {{ t("You can fulfil this") }}</span>
+          {% endif %}
+        </div>
+
+        <div class="row g-2 mt-2 small">
+          <div class="col-6"><span class="text-muted">{{ t("Quantity") }}</span><br><strong>{{ '%g'|format(r.quantity) }} quintal</strong></div>
+          <div class="col-6"><span class="text-muted">{{ t("Price range") }}</span><br>
+            <strong>{% if r.price_min or r.price_max %}{{ r.price_min|rupee }} – {{ r.price_max|rupee }}{% else %}{{ t("Negotiable") }}{% endif %}</strong></div>
+          <div class="col-6"><span class="text-muted">{{ t("Minimum grade") }}</span><br><strong>{{ t("Grade") }} {{ r.min_grade }}</strong></div>
+          <div class="col-6"><span class="text-muted">{{ t("Needed by") }}</span><br><strong>{{ r.needed_by|nicedate }}</strong></div>
+          <div class="col-12"><span class="text-muted">{{ t("Delivery") }}</span>
+            <strong>{{ r.delivery_location or r.district or r.state or 'To be discussed' }}</strong>
+            {% if row.same_district %}<span class="badge bg-info-subtle text-info">{{ t("Your district") }}</span>{% endif %}</div>
+        </div>
+
+        <div class="mt-2">
+          {% if r.organic_only %}<span class="badge bg-success-subtle text-success"><i class="bi bi-leaf"></i> {{ t("Organic only") }}</span>{% endif %}
+          {% if r.certificate_mandatory %}<span class="badge bg-warning-subtle text-warning"><i class="bi bi-patch-check"></i> {{ t("Certificate required") }}</span>{% endif %}
+        </div>
+
+        {% if r.notes %}<p class="small text-muted mt-2 mb-0">{{ r.notes|truncate(140) }}</p>{% endif %}
+
+        <hr class="my-3">
+        {% if row.matched %}
+          <button class="btn btn-sm btn-success w-100" data-bs-toggle="collapse" data-bs-target="#offer{{ r.id }}">
+            <i class="bi bi-send"></i> {{ t("Offer one of my lots") }}</button>
+          <div class="collapse mt-3" id="offer{{ r.id }}">
+            <form method="post" action="{{ url_for('farmer.offer', req_id=r.id) }}">
+              <div class="mb-2">
+                <label class="form-label small">{{ t("Which lot?") }}</label>
+                <select name="crop_id" class="form-select form-select-sm" required>
+                  {% for c in row.matched %}
+                    <option value="{{ c.id }}">
+                      {{ crop_name(c.crop_name) }} · {{ '%g'|format(c.quantity) }} q · Grade {{ c.ai_grade or '-' }} · {{ c.expected_price|rupee }}/q
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small">{{ t("Quantity (q)") }}</label>
+                  <input type="number" step="0.1" min="0.1" name="quantity" class="form-control form-control-sm"
+                         value="{{ '%g'|format(r.quantity) }}" required>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small">{{ t("Your price (₹/q)") }}</label>
+                  <input type="number" step="1" name="offered_price" class="form-control form-control-sm"
+                         value="{{ (r.price_max or row.matched[0].expected_price)|int }}" required>
+                </div>
+              </div>
+              <div class="mt-2">
+                <textarea name="message" class="form-control form-control-sm" rows="2"
+                          placeholder="{{ t("Message to the buyer (packing, transport, when you can deliver)") }}"></textarea>
+              </div>
+              <button class="btn btn-success btn-sm w-100 mt-2">{{ t("Send offer") }}</button>
+            </form>
+          </div>
+        {% else %}
+          <div class="small text-muted">
+            <i class="bi bi-info-circle"></i> None of your available lots meets this requirement
+            {% if my_crops %}(check grade, organic or certificate conditions){% else %}— you have no available lots yet{% endif %}.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

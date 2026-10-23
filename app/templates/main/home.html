@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import crop_card, stat %}
+{% block title %}{{ t("Farmer to buyer, directly") }}{% endblock %}
+
+{% block content %}
+<section class="av-hero mb-4">
+  <div class="row align-items-center">
+    <div class="col-lg-7">
+      <h1 class="display-5">{{ t("Sell your harvest at the price it deserves.") }}</h1>
+      <p class="lead mb-4">
+        {{ t("AgriVision connects farmers directly with buyers — no middlemen. Upload a photo of your crop and our AI grades its quality, suggests a fair price from live regional trends, predicts demand, and verifies your quality certificates.") }}
+      </p>
+      {% if not current_user.is_authenticated %}
+        <a href="{{ url_for('auth.register', role='farmer') }}" class="btn btn-warning btn-lg fw-semibold me-2">
+          <i class="bi bi-tree"></i> {{ t("I am a Farmer") }}
+        </a>
+        <a href="{{ url_for('auth.register', role='buyer') }}" class="btn btn-light btn-lg fw-semibold">
+          <i class="bi bi-briefcase"></i> {{ t("I am a Buyer") }}
+        </a>
+      {% else %}
+        <a href="{{ url_for(current_user.role + '.dashboard') }}" class="btn btn-warning btn-lg fw-semibold">
+          {{ t("Go to my dashboard") }} <i class="bi bi-arrow-right"></i>
+        </a>
+      {% endif %}
+    </div>
+    <div class="col-lg-5 d-none d-lg-block text-center">
+      <i class="bi bi-cpu" style="font-size:9rem; opacity:.25"></i>
+    </div>
+  </div>
+</section>
+
+<div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-5">
+  {{ stat('people', t('Farmers'), stats.farmers, 'success') }}
+  {{ stat('briefcase', t('Buyers'), stats.buyers, 'info') }}
+  {{ stat('box-seam', t('Live listings'), stats.listings, 'primary') }}
+  {{ stat('megaphone', t('Open requirements'), stats.requirements, 'warning') }}
+  {{ stat('check2-circle', t('Deals struck'), stats.deals, 'success') }}
+  {{ stat('basket', t('Quintal available'), '%g'|format(stats.quantity), 'secondary') }}
+</div>
+
+<!-- ============ how it works ============ -->
+<h4 class="fw-bold mb-3">{{ t("How AgriVision works") }}</h4>
+<div class="row g-3 mb-5">
+  <div class="col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="av-stat-icon bg-success-subtle text-success mb-2"><i class="bi bi-camera"></i></div>
+      <h6 class="fw-bold">{{ t("1 · Photograph the lot") }}</h6>
+      <p class="small text-muted mb-0">{{ t("The farmer uploads photos, quantity and location. No paperwork, no agent visit.") }}</p>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="av-stat-icon bg-primary-subtle text-primary mb-2"><i class="bi bi-cpu"></i></div>
+      <h6 class="fw-bold">{{ t("2 · AI grades and prices it") }}</h6>
+      <p class="small text-muted mb-0">{{ t("Computer vision scores colour, uniformity, defects and size, then a price band is computed from district mandi trends.") }}</p>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="av-stat-icon bg-warning-subtle text-warning mb-2"><i class="bi bi-patch-check"></i></div>
+      <h6 class="fw-bold">{{ t("3 · Certificates verified") }}</h6>
+      <p class="small text-muted mb-0">{{ t("For grapes and other export crops the certificate is read by OCR and checked against the issuing authority's format and validity.") }}</p>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100"><div class="card-body">
+      <div class="av-stat-icon bg-info-subtle text-info mb-2"><i class="bi bi-chat-dots"></i></div>
+      <h6 class="fw-bold">{{ t("4 · Deal directly") }}</h6>
+      <p class="small text-muted mb-0">{{ t("Buyers post requirements or send buying requests. Both sides negotiate in one thread and close the trade.") }}</p>
+    </div></div>
+  </div>
+</div>
+
+<!-- ============ featured lots ============ -->
+{% if featured %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="fw-bold mb-0">{{ t("Top-graded lots on the platform") }}</h4>
+  {% if current_user.is_authenticated and current_user.is_buyer %}
+    <a href="{{ url_for('buyer.browse') }}" class="btn btn-sm btn-outline-success">{{ t("Browse all") }}</a>
+  {% endif %}
+</div>
+<div class="row g-3 mb-5">
+  {% for c in featured %}
+    {% set href = url_for('buyer.crop_detail', crop_id=c.id) if current_user.is_authenticated and current_user.is_buyer else url_for('auth.login') %}
+    {{ crop_card(c, href) }}
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ============ open requirements ============ -->
+{% if open_reqs %}
+<h4 class="fw-bold mb-3">{{ t("Buyers are looking for") }}</h4>
+<div class="row g-3">
+  {% for r in open_reqs %}
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="fw-bold mb-1">{{ crop_name(r.crop_name) }}</h6>
+        <div class="small text-muted mb-2"><i class="bi bi-geo-alt"></i> {{ r.district or r.state or 'Any location' }}</div>
+        <div class="fw-semibold">{{ '%g'|format(r.quantity) }} quintal</div>
+        {% if r.price_max %}<div class="small text-muted">{{ t("up to") }} {{ r.price_max|rupee }}/quintal</div>{% endif %}
+        <span class="badge bg-light text-dark mt-2">{{ t("Grade") }} {{ r.min_grade }} {{ t("or better") }}</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

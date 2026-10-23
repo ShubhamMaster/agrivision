@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit requirement' if mode == 'edit' else 'Post a requirement' }}{% endblock %}
+
+{% macro val(name, default='') %}{{ form.get(name) if form.get(name) else (req[name] if req and req[name] is not none else default) }}{% endmacro %}
+
+{% block content %}
+<div class="row justify-content-center g-4">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-megaphone"></i>
+          {{ 'Edit requirement' if mode == 'edit' else 'Post what you need' }}</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Crop") }} <span class="text-danger">*</span></label>
+              <select name="crop_name" class="form-select {{ 'is-invalid' if errors.get('crop_name') }}"
+                      {{ 'disabled' if mode == 'edit' }} required>
+                <option value="">{{ t("— select the crop —") }}</option>
+                {% for c in CROP_LIST %}
+                  <option value="{{ c }}" {{ 'selected' if (req and req.crop_name == c) or form.get('crop_name') == c }}>{{ crop_name(c) }}</option>
+                {% endfor %}
+              </select>
+              {% if mode == 'edit' %}<input type="hidden" name="crop_name" value="{{ crop_name(req.crop_name) }}">{% endif %}
+              {% if errors.get('crop_name') %}<div class="invalid-feedback">{{ errors['crop_name'] }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Variety preferred") }}</label>
+              <input class="form-control" name="variety" value="{{ val('variety') }}"
+                     placeholder="{{ t("leave blank for any") }}">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">{{ t("Quantity (quintal)") }} <span class="text-danger">*</span></label>
+              <input type="number" step="0.1" min="0.1" name="quantity"
+                     class="form-control {{ 'is-invalid' if errors.get('quantity') }}"
+                     value="{{ val('quantity') }}" required>
+              {% if errors.get('quantity') %}<div class="invalid-feedback">{{ errors['quantity'] }}</div>{% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ t("Minimum acceptable grade") }}</label>
+              <select name="min_grade" class="form-select">
+                {% for g, label in [('A','Grade A only — premium'), ('B','Grade B or better — standard'), ('C','Grade C or better — any')] %}
+                  <option value="{{ g }}" {{ 'selected' if (req and req.min_grade == g) or form.get('min_grade') == g }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ t("Needed by") }}</label>
+              <input type="date" class="form-control" name="needed_by"
+                     value="{{ req.needed_by.isoformat() if req and req.needed_by else form.get('needed_by','') }}">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Price range (₹ per quintal)") }}</label>
+              <div class="input-group">
+                <span class="input-group-text">{{ t("from ₹") }}</span>
+                <input type="number" name="price_min" class="form-control" value="{{ val('price_min') }}">
+                <span class="input-group-text">to ₹</span>
+                <input type="number" name="price_max"
+                       class="form-control {{ 'is-invalid' if errors.get('price_max') }}" value="{{ val('price_max') }}">
+              </div>
+              {% if errors.get('price_max') %}<div class="invalid-feedback d-block">{{ errors['price_max'] }}</div>
+              {% else %}<div class="form-text">{{ t("Leave blank to invite open offers.") }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">{{ t("State") }}</label>
+              <input class="form-control" name="state" value="{{ val('state', current_user.state) }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">{{ t("District preferred") }}</label>
+              <input class="form-control" name="district" value="{{ val('district', current_user.district) }}">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">{{ t("Delivery location") }}</label>
+              <input class="form-control" name="delivery_location" value="{{ val('delivery_location') }}"
+                     placeholder="{{ t("e.g. Cold store, MIDC Satpur, Nashik") }}">
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="organic_only" id="org"
+                       {{ 'checked' if (req and req.organic_only) or form.get('organic_only') }}>
+                <label class="form-check-label" for="org">{{ t("Organic produce only") }}</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="certificate_mandatory" id="cert"
+                       {{ 'checked' if (req and req.certificate_mandatory) or form.get('certificate_mandatory') }}>
+                <label class="form-check-label" for="cert">{{ t("Verified quality certificate mandatory") }}</label>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">{{ t("Notes for farmers") }}</label>
+              <textarea class="form-control" name="notes" rows="3"
+                        placeholder="{{ t("Packing, payment terms, inspection, transport arrangement…") }}">{{ val('notes') }}</textarea>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between mt-4">
+            <a href="{{ url_for('buyer.requirements') }}" class="btn btn-link text-muted">{{ t("Cancel") }}</a>
+            <button class="btn btn-success px-4">
+              <i class="bi bi-megaphone"></i> {{ 'Save changes' if mode == 'edit' else 'Post requirement' }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="alert alert-light border small">
+      <strong><i class="bi bi-info-circle"></i> {{ t("What happens next") }}</strong>
+      <ol class="ps-3 mb-0 mt-1">
+        <li>{{ t("Every farmer with that crop listed is notified.") }}</li>
+        <li>{{ t("Matching lots appear on your requirement page, ranked by quality.") }}</li>
+        <li>{{ t("Farmers can send you offers against the requirement.") }}</li>
+        <li>{{ t("The requirement closes automatically once the full quantity is met.") }}</li>
+      </ol>
+    </div>
+    <div class="alert alert-warning small">
+      <i class="bi bi-lightbulb"></i> {{ t("Setting a") }} <strong>{{ t("minimum grade") }}</strong> and a
+      <strong>{{ t("realistic price ceiling") }}</strong> gets better matches than leaving both open —
+      farmers see at a glance whether their lot qualifies.
+    </div>
+  </div>
+</div>
+{% endblock %}

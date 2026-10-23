@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import deal_badge, grade_badge, cert_badge %}
+{% block title %}Deal #{{ deal.id }}{% endblock %}
+
+{% block content %}
+<nav class="small mb-2">
+  <a href="{{ url_for('deals.inbox') }}" class="text-decoration-none text-muted">
+    <i class="bi bi-arrow-left"></i> {{ t("All deals") }}</a>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="fw-bold mb-1">
+      {% if deal.initiated_by == 'buyer' %}{{ t("Buying request") }}{% else %}{{ t("Farmer offer") }}{% endif %} #{{ deal.id }}
+    </h4>
+    <div class="small text-muted">
+      {{ t("Started by the") }} {{ t(deal.initiated_by) }} · {{ deal.created_at|nicedate }}
+    </div>
+  </div>
+  {{ deal_badge(deal) }}
+</div>
+
+<div class="row g-4">
+  <!-- ===== left: terms + actions + chat ===== -->
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header fw-semibold"><i class="bi bi-file-text"></i> {{ t("Terms on the table") }}</div>
+      <div class="card-body">
+        <div class="row text-center g-3">
+          <div class="col-4">
+            <div class="small text-muted">{{ t("Quantity") }}</div>
+            <div class="fs-4 fw-bold">{{ '%g'|format(deal.quantity) }}<span class="fs-6 text-muted"> q</span></div>
+          </div>
+          <div class="col-4">
+            <div class="small text-muted">{{ t("Price offered") }}</div>
+            <div class="fs-4 fw-bold text-success">{{ deal.offered_price|rupee }}</div>
+            <div class="small text-muted">{{ t("per quintal") }}</div>
+          </div>
+          <div class="col-4">
+            <div class="small text-muted">{{ t("Total value") }}</div>
+            <div class="fs-4 fw-bold">{{ deal.total_value|rupee }}</div>
+          </div>
+        </div>
+
+        {% if deal.crop and deal.crop.expected_price %}
+        <div class="alert alert-light border small mt-3 mb-0">
+          {{ t("Listed asking price is {price} per quintal.", price=deal.crop.expected_price|rupee) }}
+          {% set diff = deal.offered_price - deal.crop.expected_price %}
+          {% if diff < 0 %}
+            {{ t("This offer is {amount} per quintal below the asking price ({pct}% less).",
+                 amount=(-diff)|rupee, pct='%.1f'|format(-diff / deal.crop.expected_price * 100)) }}
+          {% elif diff > 0 %}
+            {{ t("This offer is {amount} per quintal above the asking price.", amount=diff|rupee) }}
+          {% else %}
+            {{ t("The offer matches the asking price exactly.") }}
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if deal.message %}
+          <hr>
+          <div class="small text-muted mb-1">{{ t("Opening message") }}</div>
+          <p class="mb-0">{{ deal.message }}</p>
+        {% endif %}
+
+        {% if deal.response_note %}
+          <hr>
+          <div class="small text-muted mb-1">{{ t("Response note") }}</div>
+          <p class="mb-0">{{ deal.response_note }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- actions -->
+    <div class="card mb-4">
+      <div class="card-body">
+        {% if deal.status == 'pending' and is_recipient %}
+          <h6 class="fw-bold">{{ t("Your decision") }}</h6>
+          <p class="small text-muted">
+            {{ t("Accepting reserves the lot and shares contact details with the other side.") }}
+          </p>
+          <form method="post" action="{{ url_for('deals.accept', deal_id=deal.id) }}" class="mb-2">
+            <textarea name="note" class="form-control form-control-sm mb-2" rows="2"
+                      placeholder="{{ t("Optional note — delivery date, packing, payment terms…") }}"></textarea>
+            <button class="btn btn-success w-100"><i class="bi bi-check2-circle"></i> {{ t("Accept this") }} {{ t('request') if deal.initiated_by == 'buyer' else t('offer') }}</button>
+          </form>
+          <form method="post" action="{{ url_for('deals.reject', deal_id=deal.id) }}">
+            <button class="btn btn-outline-danger w-100 btn-sm"><i class="bi bi-x-circle"></i> {{ t("Decline") }}</button>
+          </form>
+
+        {% elif deal.status == 'pending' and not is_recipient %}
+          <div class="alert alert-warning small mb-2">
+            <i class="bi bi-hourglass-split"></i> {{ t("Waiting for") }}
+            {{ other.company_name or other.full_name }} {{ t("to respond") }}.
+          </div>
+          <form method="post" action="{{ url_for('deals.cancel', deal_id=deal.id) }}">
+            <button class="btn btn-outline-secondary btn-sm w-100">{{ t("Withdraw this request") }}</button>
+          </form>
+
+        {% elif deal.status == 'accepted' %}
+          <div class="alert alert-success small">
+            <i class="bi bi-check2-circle"></i> <strong>{{ t("Deal accepted.") }}</strong>
+            {{ t("Arrange delivery and payment directly, then mark it complete.") }}
+          </div>
+          <div class="row g-2">
+            <div class="col">
+              <form method="post" action="{{ url_for('deals.complete', deal_id=deal.id) }}">
+                <button class="btn btn-success w-100"><i class="bi bi-flag"></i> {{ t("Mark as completed") }}</button>
+              </form>
+            </div>
+            <div class="col-auto">
+              <form method="post" action="{{ url_for('deals.cancel', deal_id=deal.id) }}"
+                    onsubmit="return confirm('Cancel this accepted deal?')">
+                <button class="btn btn-outline-danger">{{ t("Cancel deal") }}</button>
+              </form>
+            </div>
+          </div>
+
+        {% elif deal.status == 'completed' %}
+          <div class="alert alert-primary small mb-0">
+            <i class="bi bi-flag-fill"></i> {{ t("This trade is complete") }}.
+            {{ '%g'|format(deal.quantity) }} {{ t("quintal at") }} {{ deal.offered_price|rupee }}/quintal
+            — total {{ deal.total_value|rupee }}.
+          </div>
+        {% else %}
+          <div class="alert alert-secondary small mb-0">
+            {{ t("This request was") }} {{ t(deal.status) }}{% if deal.responded_at %} on {{ deal.responded_at|nicedate }}{% endif %}.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- chat -->
+    <div class="card" id="chat">
+      <div class="card-header fw-semibold"><i class="bi bi-chat-dots"></i> {{ t("Conversation") }}</div>
+      <div class="card-body">
+        <div class="av-chat mb-3">
+          {% if not deal.messages %}
+            <p class="text-muted small text-center my-4">{{ t("No messages yet — say hello and agree the details.") }}</p>
+          {% endif %}
+          {% for m in deal.messages %}
+            <div class="av-msg {{ 'av-msg-mine' if m.sender_id == current_user.id else 'av-msg-theirs' }}">
+              {{ m.body }}
+              <div class="small {{ 'text-white-50' if m.sender_id == current_user.id else 'text-muted' }}"
+                   style="font-size:.7rem">{{ m.created_at|ago }}</div>
+            </div>
+          {% endfor %}
+        </div>
+
+        {% if deal.status in ['pending', 'accepted'] %}
+        <form method="post" action="{{ url_for('deals.message', deal_id=deal.id) }}" class="d-flex gap-2">
+          <input name="body" class="form-control" placeholder="{{ t('Write a message…') }}" required maxlength="1000">
+          <button class="btn btn-success"><i class="bi bi-send"></i></button>
+        </form>
+        {% else %}
+          <p class="small text-muted mb-0">{{ t("This thread is closed for new messages.") }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== right: lot + parties ===== -->
+  <div class="col-lg-5">
+    {% if deal.crop %}
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">{{ t("The lot") }}</div>
+      {% if deal.crop.cover_photo %}
+        <img src="{{ url_for('static', filename='uploads/crops/' ~ deal.crop.cover_photo) }}"
+             style="height:180px;object-fit:cover">
+      {% endif %}
+      <div class="card-body">
+        <h6 class="fw-bold mb-1">{{ crop_name(deal.crop.crop_name) }}
+          {% if deal.crop.variety %}<span class="text-muted fw-normal">· {{ deal.crop.variety }}</span>{% endif %}</h6>
+        <div class="d-flex gap-2 flex-wrap mb-2">
+          {{ grade_badge(deal.crop.ai_grade, deal.crop.ai_quality_score) }}
+          {{ cert_badge(deal.crop) }}
+          {% if deal.crop.organic %}<span class="badge bg-success-subtle text-success">{{ t("Organic") }}</span>{% endif %}
+        </div>
+        <table class="table table-sm small mb-0">
+          <tr><td class="text-muted">{{ t("Lot quantity") }}</td><td class="text-end">{{ '%g'|format(deal.crop.quantity) }} q</td></tr>
+          <tr><td class="text-muted">{{ t("Asking price") }}</td><td class="text-end">{{ deal.crop.expected_price|rupee }}/q</td></tr>
+          <tr><td class="text-muted">{{ t("Location") }}</td><td class="text-end">{{ deal.crop.district or '—' }}</td></tr>
+          <tr><td class="text-muted">{{ t("Lot status") }}</td><td class="text-end">{{ t(deal.crop.status) }}</td></tr>
+        </table>
+        <a href="{{ url_for('buyer.crop_detail', crop_id=deal.crop.id) if current_user.is_buyer else url_for('farmer.crop_detail', crop_id=deal.crop.id) }}"
+           class="btn btn-sm btn-outline-success w-100 mt-2">{{ t("Open the full listing") }}</a>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        {{ t('Buyer') if current_user.is_farmer else t('Farmer') }}
+      </div>
+      <div class="card-body">
+        <h6 class="fw-bold mb-1">{{ other.company_name or other.full_name }}</h6>
+        <div class="small text-muted">
+          {% if other.buyer_type %}{{ other.buyer_type }}<br>{% endif %}
+          <i class="bi bi-geo-alt"></i> {{ other.location_label }}<br>
+          <i class="bi bi-calendar3"></i> {{ t("Member since") }} {{ other.created_at|nicedate }}
+        </div>
+
+        {% if deal.status in ['accepted', 'completed'] %}
+          <hr>
+          <div class="small">
+            <div class="fw-semibold mb-1">{{ t("Contact details") }}</div>
+            <i class="bi bi-telephone"></i> {{ other.phone }}<br>
+            <i class="bi bi-envelope"></i> {{ other.email }}
+            {% if other.gst_number %}<br><i class="bi bi-receipt"></i> GST {{ other.gst_number }}{% endif %}
+          </div>
+        {% else %}
+          <div class="alert alert-light border small mt-3 mb-0">
+            <i class="bi bi-lock"></i> {{ t("Phone and email are revealed once the deal is accepted.") }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if deal.requirement %}
+    <div class="card">
+      <div class="card-header fw-semibold">{{ t("Linked requirement") }}</div>
+      <div class="card-body small">
+        <strong>{{ crop_name(deal.requirement.crop_name) }}</strong> — {{ '%g'|format(deal.requirement.quantity) }} quintal,
+        Grade {{ deal.requirement.min_grade }} {{ t("or better") }}
+        {% if deal.requirement.price_max %}, up to {{ deal.requirement.price_max|rupee }}/q{% endif %}.
+        {% if current_user.is_buyer %}
+          <a href="{{ url_for('buyer.requirement_detail', req_id=deal.requirement.id) }}"
+             class="btn btn-sm btn-outline-secondary w-100 mt-2">{{ t("Open requirement") }}</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

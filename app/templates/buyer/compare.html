@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import grade_badge, cert_badge, empty %}
+{% block title %}{{ t("Compare lots") }}{% endblock %}
+
+{% block content %}
+<nav class="small mb-2">
+  <a href="{{ url_for('buyer.browse') }}" class="text-decoration-none text-muted">
+    <i class="bi bi-arrow-left"></i> {{ t("Back to marketplace") }}</a>
+</nav>
+
+<h4 class="fw-bold mb-1"><i class="bi bi-columns-gap"></i> {{ t("Side-by-side comparison") }}</h4>
+<p class="text-muted small">{{ t("Lots are ordered by") }} <strong>{{ t("value score") }}</strong> — quality per rupee,
+   with bonuses for verified certification and organic produce, and a penalty for over-pricing.</p>
+
+{% if not rows %}
+  {{ empty('columns-gap', t('Nothing to compare'), t('Tick the comparison box on two or more lots in the marketplace.'),
+           url_for('buyer.browse'), 'Go to marketplace') }}
+{% else %}
+<div class="table-responsive">
+  <table class="table table-bordered table-compare bg-white align-middle">
+    <thead>
+      <tr>
+        <th style="width:190px">{{ t("Attribute") }}</th>
+        {% for r in rows %}
+        <th class="text-center">
+          {% if r.crop.cover_photo %}
+            <img src="{{ url_for('static', filename='uploads/crops/' ~ r.crop.cover_photo) }}"
+                 class="rounded mb-2" style="height:110px;width:100%;object-fit:cover">
+          {% endif %}
+          <div class="fw-bold">{{ crop_name(r.crop.crop_name) }}</div>
+          <div class="small text-muted fw-normal">{{ r.crop.variety or '' }}</div>
+          {% if loop.first %}<span class="badge bg-warning text-dark mt-1">{{ t("Best value") }}</span>{% endif %}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th>{{ t("Value score") }}</th>
+        {% for r in rows %}
+          <td class="text-center"><span class="fs-5 fw-bold text-success">{{ r.value_score }}</span></td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("AI quality grade") }}</th>
+        {% for r in rows %}<td class="text-center">{{ grade_badge(r.crop.ai_grade, r.crop.ai_quality_score) }}</td>{% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Asking price") }}</th>
+        {% for r in rows %}
+          <td class="text-center fw-semibold">{{ r.crop.expected_price|rupee }}/q</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("AI fair band") }}</th>
+        {% for r in rows %}
+          <td class="text-center small">{{ r.band.min|rupee }} – {{ r.band.max|rupee }}
+            <div>
+              {% if r.crop.expected_price > r.band.max %}
+                <span class="badge bg-danger">{{ t("Above band") }}</span>
+              {% elif r.crop.expected_price < r.band.min %}
+                <span class="badge bg-success">{{ t("Below band") }}</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ t("Within band") }}</span>
+              {% endif %}
+            </div>
+          </td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Quantity available") }}</th>
+        {% for r in rows %}<td class="text-center">{{ '%g'|format(r.crop.quantity) }} quintal</td>{% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Lot value") }}</th>
+        {% for r in rows %}<td class="text-center">{{ (r.crop.quantity * r.crop.expected_price)|rupee }}</td>{% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Colour score") }}</th>
+        {% for r in rows %}
+          {% set g = r.crop.photos|selectattr('colour_score')|list %}
+          <td class="text-center">{{ '%.0f'|format((g|sum(attribute='colour_score')) / g|length) if g else '—' }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Defect-free score") }}</th>
+        {% for r in rows %}
+          {% set g = r.crop.photos|selectattr('defect_score')|list %}
+          <td class="text-center">{{ '%.0f'|format((g|sum(attribute='defect_score')) / g|length) if g else '—' }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Uniformity score") }}</th>
+        {% for r in rows %}
+          {% set g = r.crop.photos|selectattr('uniformity_score')|list %}
+          <td class="text-center">{{ '%.0f'|format((g|sum(attribute='uniformity_score')) / g|length) if g else '—' }}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Certificate") }}</th>
+        {% for r in rows %}
+          <td class="text-center">{{ cert_badge(r.crop) }}
+            {% if r.crop.certificate_status == 'not_required' %}<span class="small text-muted">{{ t("Not required") }}</span>{% endif %}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Organic") }}</th>
+        {% for r in rows %}
+          <td class="text-center">{% if r.crop.organic %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        {% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Location") }}</th>
+        {% for r in rows %}<td class="text-center small">{{ r.crop.district or '—' }}<br>{{ r.crop.market or '' }}</td>{% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Harvest date") }}</th>
+        {% for r in rows %}<td class="text-center small">{{ r.crop.harvest_date|nicedate }}</td>{% endfor %}
+      </tr>
+      <tr>
+        <th>{{ t("Farmer") }}</th>
+        {% for r in rows %}<td class="text-center small">{{ r.crop.farmer.full_name }}</td>{% endfor %}
+      </tr>
+      <tr>
+        <th></th>
+        {% for r in rows %}
+          <td class="text-center">
+            <a href="{{ url_for('buyer.crop_detail', crop_id=r.crop.id) }}" class="btn btn-sm btn-success">
+              {{ t("View &amp; request") }}</a>
+          </td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

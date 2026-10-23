@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ t("Access denied") }}{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <div class="display-1 fw-bold text-danger">403</div>
+  <h3 class="mt-2">{{ t("Access denied") }}</h3>
+  <p class="text-muted">{{ t("This page belongs to the other side of the platform, or to another user's account.") }}</p>
+  <a href="{{ url_for('main.home') }}" class="btn btn-success"><i class="bi bi-house"></i> {{ t("Back to home") }}</a>
+</div>
+{% endblock %}

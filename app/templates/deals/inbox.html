@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import deal_badge, grade_badge, empty %}
+{% block title %}{{ t("Deals") }}{% endblock %}
+
+{% block content %}
+<h4 class="fw-bold mb-3"><i class="bi bi-inbox"></i> {{ t("Deals") }}</h4>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <ul class="nav nav-pills">
+    <li class="nav-item">
+      <a class="nav-link {{ 'active' if box == 'received' }}" href="{{ url_for('deals.inbox', box='received') }}">
+        Received {% if counts.received %}<span class="badge bg-danger">{{ counts.received }}</span>{% endif %}</a></li>
+    <li class="nav-item">
+      <a class="nav-link {{ 'active' if box == 'sent' }}" href="{{ url_for('deals.inbox', box='sent') }}">{{ t("Sent") }}</a></li>
+    <li class="nav-item">
+      <a class="nav-link {{ 'active' if box == 'all' }}" href="{{ url_for('deals.inbox', box='all') }}">{{ t("All") }}</a></li>
+  </ul>
+
+  <form class="d-flex gap-2">
+    <input type="hidden" name="box" value="{{ box }}">
+    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+      {% for s in ['all', 'pending', 'accepted', 'rejected', 'cancelled', 'completed'] %}
+        <option value="{{ s }}" {{ 'selected' if status == s }}>{{ s|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if not items %}
+  {{ empty('inbox', t('Nothing here'), t('Requests and offers will appear in this inbox.')) }}
+{% else %}
+<div class="card">
+  <div class="list-group list-group-flush">
+    {% for d in items %}
+    <a href="{{ url_for('deals.detail', deal_id=d.id) }}" class="list-group-item list-group-item-action">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="d-flex gap-3">
+          {% if d.crop and d.crop.cover_photo %}
+            <img src="{{ url_for('static', filename='uploads/crops/' ~ d.crop.cover_photo) }}"
+                 class="av-thumb" style="width:56px;height:56px">
+          {% endif %}
+          <div>
+            <div class="fw-semibold">
+              {{ d.crop.crop_name if d.crop else 'Lot removed' }}
+              {% if d.crop %}{{ grade_badge(d.crop.ai_grade, inline=True) }}{% endif %}
+            </div>
+            <div class="small">
+              {% if d.initiated_by == 'buyer' %}
+                <i class="bi bi-arrow-right-circle text-primary"></i>
+                <strong>{{ d.buyer.company_name or d.buyer.full_name }}</strong> → {{ d.farmer.full_name }}
+              {% else %}
+                <i class="bi bi-arrow-left-circle text-success"></i>
+                <strong>{{ d.farmer.full_name }}</strong> → {{ d.buyer.company_name or d.buyer.full_name }}
+              {% endif %}
+            </div>
+            <div class="small text-muted">
+              {{ '%g'|format(d.quantity) }} {{ t("quintal at") }} {{ d.offered_price|rupee }}/q ·
+              total <strong>{{ d.total_value|rupee }}</strong>
+              {% if d.messages %}· <i class="bi bi-chat-dots"></i> {{ d.messages|length }}{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="text-end">
+          {{ deal_badge(d) }}
+          <div class="small text-muted mt-1">{{ d.created_at|ago }}</div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

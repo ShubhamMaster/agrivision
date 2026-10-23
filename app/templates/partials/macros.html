@@ -1,0 +1,184 @@
+{# ===================================================================
+   Reusable UI components.  Import once per template:
+       {% from "partials/macros.html" import grade_badge, crop_card %}
+   =================================================================== #}
+
+{# ---- quality grade stamp ----
+   A grading mark the way a crate is stamped: the letter is the thing you read
+   across a grid of lots, the score sits under it for anyone who wants it.
+   `inline=True` drops it into a table cell or a page heading instead. #}
+{% macro grade_badge(grade, score=None, inline=False) %}
+  {% set cls = {'A':'av-stamp-a','B':'av-stamp-b','C':'av-stamp-c'}.get(grade, 'av-stamp-none') %}
+  <span class="av-stamp {{ cls }}{{ ' av-stamp-inline' if inline }}"
+        title="{{ ('AI quality grade ' ~ grade ~ (', score %.0f out of 100'|format(score) if score else '')) if grade else 'Not yet graded' }}">
+    <span class="av-stamp-letter">{{ grade if grade else '–' }}</span>
+    {% if score %}<span class="av-stamp-score">{{ '%.0f'|format(score) }}</span>{% endif %}
+  </span>
+{% endmacro %}
+
+{# ---- certificate status flag ---- #}
+{% macro cert_badge(crop, show_none=False) %}
+  {% if crop.certificate_status == 'verified' %}
+    <span class="av-flag av-flag-ok"><i class="bi bi-patch-check-fill"></i> {{ t("Certified") }}</span>
+  {% elif crop.certificate_status == 'pending' %}
+    <span class="av-flag av-flag-wait"><i class="bi bi-hourglass-split"></i> {{ t("Certificate pending") }}</span>
+  {% elif crop.certificate_status == 'rejected' %}
+    <span class="av-flag av-flag-no"><i class="bi bi-x-octagon"></i> {{ t("Certificate rejected") }}</span>
+  {% elif show_none %}
+    <span class="av-flag av-flag-plain">{{ t("No certificate needed") }}</span>
+  {% endif %}
+{% endmacro %}
+
+{# ---- the produce plate ----
+   One definition of how a lot photograph is framed, so the card, the gallery
+   and the comparison table cannot drift apart. #}
+{% macro plate(crop, href=None, stamp=True) %}
+<div class="av-plate">
+  {% if crop.cover_photo %}
+    {% if href %}<a href="{{ href }}" tabindex="-1" aria-hidden="true">{% endif %}
+      <img src="{{ url_for('static', filename='uploads/crops/' ~ crop.cover_photo) }}"
+           alt="{{ crop_name(crop.crop_name) }}{% if crop.variety %}, {{ crop.variety }}{% endif %}" loading="lazy">
+    {% if href %}</a>{% endif %}
+  {% else %}
+    <i class="bi bi-image av-plate-empty"></i>
+  {% endif %}
+  {% if stamp %}{{ grade_badge(crop.ai_grade, crop.ai_quality_score) }}{% endif %}
+</div>
+{% endmacro %}
+
+{# ---- a small statistic tile ---- #}
+{% macro stat(icon, label, value, colour="primary", sub=None) %}
+<div class="col">
+  <div class="av-stat">
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-3">
+        <div class="av-stat-icon bg-{{ colour }}-subtle text-{{ colour }}"><i class="bi bi-{{ icon }}"></i></div>
+        <div>
+          <div class="av-stat-value">{{ value }}</div>
+          <div class="av-stat-label">{{ label }}</div>
+          {% if sub %}<div class="small text-muted">{{ sub }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{# ---- marketplace lot card ----
+   Reading order matches how a buyer decides: what it is, what it costs,
+   whether the price is fair, then where it is and who is selling. #}
+{% macro crop_card(crop, href, show_farmer=True, compare=False) %}
+<div class="col-md-6 col-lg-4">
+  <article class="av-card">
+    {{ plate(crop, href) }}
+
+    <div class="av-card-body">
+      <h3 class="av-card-title">
+        <a href="{{ href }}">{{ crop_name(crop.crop_name) }}</a>{% if crop.variety %}
+        <span class="av-variety">{{ crop.variety }}</span>{% endif %}
+      </h3>
+
+      <div class="d-flex justify-content-between align-items-baseline mt-1">
+        <div class="av-price">{{ crop.expected_price|rupee }}<span class="av-unit">/{{ t('quintal') }}</span></div>
+        <div class="av-meta av-num">{{ '%g'|format(crop.quantity) }} q</div>
+      </div>
+
+      {% if crop.ai_price_min and crop.ai_price_max %}
+        {{ band_bar(crop.ai_price_min, crop.ai_price_max, crop.expected_price) }}
+      {% endif %}
+
+      <div class="av-meta mt-1">
+        {{ crop.district or '—' }}{% if crop.market %} · {{ crop.market }}{% endif %}
+      </div>
+
+      {% if crop.certificate_status != 'not_required' or crop.organic or crop.price_vs_ai == 'below' %}
+      <div class="mt-2 d-flex gap-1 flex-wrap">
+        {{ cert_badge(crop) }}
+        {% if crop.organic %}<span class="av-flag av-flag-ok"><i class="bi bi-leaf"></i> {{ t("Organic") }}</span>{% endif %}
+        {% if crop.price_vs_ai == 'below' %}<span class="av-flag av-flag-plain">{{ t("Under fair band") }}</span>{% endif %}
+      </div>
+      {% endif %}
+
+      <div class="mt-auto">
+        {% if show_farmer %}
+          <div class="av-meta pt-2">{{ crop.farmer.full_name }} · {{ crop.created_at|ago }}</div>
+        {% endif %}
+
+        {% if compare %}
+          <div class="form-check mt-2">
+            <input class="form-check-input av-compare" type="checkbox" value="{{ crop.id }}" id="cmp{{ crop.id }}">
+            <label class="form-check-label av-meta" for="cmp{{ crop.id }}">{{ t("Compare") }}</label>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </article>
+</div>
+{% endmacro %}
+
+{# ---- compact fair-band bar, for cards ---- #}
+{% macro band_bar(low, high, asking=None) %}
+<div class="av-band">
+  <div class="av-band-track">
+    {% if asking %}
+      {% set span = (high - low) or 1 %}
+      {% set pos = ((asking - low) / span * 100) %}
+      {% set state = 'is-under' if asking < low else ('is-over' if asking > high else '') %}
+      <span class="av-band-marker {{ state }}" style="left: {{ [[pos, 0]|max, 100]|min }}%"
+            title="Asking {{ asking|rupee }} against a fair band of {{ low|rupee }} to {{ high|rupee }}"></span>
+    {% endif %}
+  </div>
+  <div class="av-band-ends av-num"><span>{{ low|rupee }}</span><span>{{ high|rupee }}</span></div>
+</div>
+{% endmacro %}
+
+{# ---- full AI price band, for lot and report pages ---- #}
+{% macro price_band(band, asking=None) %}
+<div class="av-band">
+  <div class="d-flex justify-content-between align-items-baseline av-meta av-num">
+    <span>{{ band.min|rupee }}</span>
+    <span class="text-dark">{{ t("Recommended") }} <strong>{{ band.recommended|rupee }}</strong></span>
+    <span>{{ band.max|rupee }}</span>
+  </div>
+  <div class="av-band-track mt-1">
+    {% if asking %}
+      {% set span = (band.max - band.min) or 1 %}
+      {% set pos = ((asking - band.min) / span * 100) %}
+      <span class="av-band-marker" style="left: {{ [[pos, 0]|max, 100]|min }}%"
+            title="Your price: {{ asking|rupee }}"></span>
+    {% endif %}
+  </div>
+  <div class="av-meta mt-1">{{ t("Based on") }} {{ band.source }}</div>
+</div>
+{% endmacro %}
+
+{# ---- demand index meter ---- #}
+{% macro demand_meter(d) %}
+<div class="d-flex align-items-center gap-3">
+  <div class="av-gauge">
+    <div class="av-gauge-fill bg-{{ d.colour }}" style="width: {{ d.index }}%"></div>
+  </div>
+  <div class="text-nowrap av-num">
+    <strong>{{ '%.0f'|format(d.index) }}</strong><span class="text-muted">/100</span>
+    <span class="av-flag av-flag-{{ 'ok' if d.colour == 'success' else ('wait' if d.colour == 'warning' else ('no' if d.colour == 'danger' else 'plain')) }} ms-1">{{ d.label }}</span>
+  </div>
+</div>
+{% endmacro %}
+
+{# ---- deal status flag ---- #}
+{% macro deal_badge(deal) %}
+{% set m = {'pending':'wait', 'accepted':'ok', 'completed':'ok',
+            'rejected':'no', 'cancelled':'plain'} %}
+<span class="av-flag av-flag-{{ m.get(deal.status, 'plain') }}">{{ t(deal.status)|capitalize }}</span>
+{% endmacro %}
+
+{# ---- empty state ----
+   An empty screen is an invitation to act, so it names the next step. #}
+{% macro empty(icon, title, text, href=None, cta=None) %}
+<div class="text-center py-5">
+  <i class="bi bi-{{ icon }} text-muted" style="font-size:2rem"></i>
+  <h5 class="mt-3 mb-1">{{ title }}</h5>
+  <p class="text-muted mx-auto" style="max-width:46ch">{{ text }}</p>
+  {% if href and cta %}<a href="{{ href }}" class="btn btn-success">{{ cta }}</a>{% endif %}
+</div>
+{% endmacro %}

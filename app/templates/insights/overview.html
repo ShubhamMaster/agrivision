@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ t("Market insights") }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow"></i> {{ t("Market insights") }}</h4>
+    <div class="small text-muted">{{ t("Demand ranking for") }} {{ district or state or 'all regions' }}</div>
+  </div>
+  <form class="d-flex gap-2">
+    <input list="dl" name="district" class="form-control form-control-sm" style="width:170px"
+           value="{{ district or '' }}" placeholder="{{ t('District') }}">
+    <datalist id="dl">{% for d in districts %}<option value="{{ d }}">{% endfor %}</datalist>
+    <input name="state" class="form-control form-control-sm" style="width:150px"
+           value="{{ state or '' }}" placeholder="{{ t('State') }}">
+    <button class="btn btn-sm btn-success">{{ t("Update") }}</button>
+  </form>
+</div>
+
+<div class="alert alert-light border small">
+  <i class="bi bi-info-circle"></i>
+  The <strong>{{ t("demand index") }}</strong> {{ t("fuses price momentum (38%), supply pressure from mandi arrivals (24%),
+  the crop's seasonal calendar (18%) and AgriVision's own requirement-vs-listing balance (20%).
+  50 is a neutral market; above 70 is a seller's market.") }}
+</div>
+
+<div class="row g-3">
+  {% for r in ranking %}
+  <div class="col-md-6 col-lg-4">
+    <a href="{{ url_for('insights.crop_report', crop_name=r.crop, state=state, district=district) }}"
+       class="text-decoration-none">
+      <div class="card h-100 av-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-bold mb-0 text-dark">{{ crop_name(r.crop) }}</h6>
+              <span class="av-flag av-flag-{{ "ok" if r.colour == "success" else ("wait" if r.colour == "warning" else ("no" if r.colour == "danger" else "plain")) }}">{{ t(r.label) }}</span>
+            </div>
+            <div class="text-end">
+              <div class="fs-3 fw-bold text-{{ r.colour }}">{{ '%.0f'|format(r.index) }}</div>
+              <div class="small text-muted">/100</div>
+            </div>
+          </div>
+          <div class="av-gauge mb-2">
+            <div class="av-gauge-fill bg-{{ r.colour }}" style="width: {{ r.index }}%"></div>
+          </div>
+          <p class="small text-muted mb-0">{{ r.top_driver|truncate(110) }}</p>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+{% if not ranking %}
+  <p class="text-muted">{{ t("No market data is available for this region yet. Run") }} <code>python seed.py</code>
+     to load sample mandi history, or add price records for your district.</p>
+{% endif %}
+{% endblock %}

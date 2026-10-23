@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Register as {{ role_label }}{% endblock %}
+
+{% macro field(name, label, type="text", required=False, value="", help="", placeholder="") %}
+<div class="col-md-6">
+  <label class="form-label">{{ label }}{% if required %} <span class="text-danger">*</span>{% endif %}</label>
+  <input type="{{ type }}" name="{{ name }}" id="{{ name }}" placeholder="{{ placeholder }}"
+         class="form-control {{ 'is-invalid' if errors.get(name) }}"
+         value="{{ form.get(name, value) }}" {{ 'required' if required }}>
+  {% if errors.get(name) %}<div class="invalid-feedback">{{ errors[name] }}</div>
+  {% elif help %}<div class="form-text">{{ help }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="card">
+      <div class="card-header bg-{{ 'success' if role == 'farmer' else 'info' }} text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-{{ 'tree' if role == 'farmer' else 'briefcase' }}"></i>
+          {{ t("Register as") }} {{ role_label }}
+        </h5>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          <h6 class="fw-bold mb-3">{{ t("Your details") }}</h6>
+          <div class="row g-3">
+            {{ field('full_name', 'Full name', required=True, placeholder='e.g. Ramesh Patil') }}
+            {{ field('phone', 'Mobile number', type='tel', required=True, placeholder='10-digit number') }}
+            {{ field('email', 'Email address', type='email', required=True) }}
+            {% if role == 'farmer' %}
+              {{ field('farm_size_acres', 'Farm size (acres)', type='number', help='Optional — helps us size your listings.') }}
+            {% else %}
+              {{ field('company_name', 'Company / firm name', placeholder='e.g. Sahyadri Exports Pvt Ltd') }}
+            {% endif %}
+          </div>
+
+          {% if role == 'buyer' %}
+          <div class="row g-3 mt-0">
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Type of buyer") }}</label>
+              <select name="buyer_type" class="form-select">
+                {% for bt in buyer_types %}
+                  <option value="{{ bt }}" {{ "selected" if form.get("buyer_type") == bt }}>{{ t(bt) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {{ field('gst_number', 'GST number', help='Optional — shown to farmers as a trust signal.') }}
+          </div>
+          {% endif %}
+
+          <h6 class="fw-bold mt-4 mb-3">{{ t("Location") }}</h6>
+          <p class="small text-muted mt--2">{{ t("Your district decides which mandi prices and demand forecasts you are shown, so please fill it accurately.") }}</p>
+          <div class="row g-3">
+            {{ field('state', 'State', required=True, value='Maharashtra') }}
+            {{ field('district', 'District', required=True, placeholder='e.g. Nashik') }}
+            {{ field('taluka', 'Taluka / Tehsil') }}
+            {{ field('pincode', 'PIN code') }}
+          </div>
+
+          <h6 class="fw-bold mt-4 mb-3">{{ t("Security") }}</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Password") }} <span class="text-danger">*</span></label>
+              <input type="password" name="password"
+                     class="form-control {{ 'is-invalid' if errors.get('password') }}" required>
+              {% if errors.get('password') %}<div class="invalid-feedback">{{ errors['password'] }}</div>
+              {% else %}<div class="form-text">{{ t("At least 6 characters.") }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ t("Confirm password") }} <span class="text-danger">*</span></label>
+              <input type="password" name="confirm_password"
+                     class="form-control {{ 'is-invalid' if errors.get('confirm_password') }}" required>
+              {% if errors.get('confirm_password') %}<div class="invalid-feedback">{{ errors['confirm_password'] }}</div>{% endif %}
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-4">
+            <a href="{{ url_for('auth.register_choice') }}" class="btn btn-link text-muted">
+              <i class="bi bi-arrow-left"></i> {{ t("Change account type") }}</a>
+            <button class="btn btn-success px-4"><i class="bi bi-check2-circle"></i> {{ t("Create account") }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <p class="text-center text-muted mt-3">
+      {{ t("Already have an account?") }} <a href="{{ url_for('auth.login') }}">{{ t("Log in") }}</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ t("Verification report") }}{% endblock %}
+
+{% block content %}
+<nav class="small mb-2">
+  {% if current_user.is_farmer %}
+    <a href="{{ url_for('farmer.crop_detail', crop_id=crop.id) }}" class="text-decoration-none text-muted">
+      <i class="bi bi-arrow-left"></i> {{ t("Back to the lot") }}</a>
+  {% else %}
+    <a href="{{ url_for('buyer.crop_detail', crop_id=crop.id) }}" class="text-decoration-none text-muted">
+      <i class="bi bi-arrow-left"></i> {{ t("Back to the lot") }}</a>
+  {% endif %}
+</nav>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header bg-{{ {'verified':'success','pending':'warning','rejected':'danger'}[cert.status] }} text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-{{ {'verified':'patch-check-fill','pending':'hourglass-split','rejected':'x-octagon-fill'}[cert.status] }}"></i>
+          {{ t("OCMR verification") }} — {{ cert.status|upper }}
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row align-items-center mb-3">
+          <div class="col-auto">
+            <div class="display-5 fw-bold text-{{ {'verified':'success','pending':'warning','rejected':'danger'}[cert.status] }}">
+              {{ '%.0f'|format(cert.confidence or 0) }}%</div>
+            <div class="small text-muted">{{ t("confidence") }}</div>
+          </div>
+          <div class="col">
+            <p class="mb-0">{{ cert.remarks }}</p>
+          </div>
+        </div>
+
+        <h6 class="fw-bold mt-4">{{ t("Verification checks") }}</h6>
+        {% for c in checks %}
+        <div class="av-check">
+          <div class="av-check-icon text-{{ 'success' if c.passed else 'danger' }}">
+            <i class="bi bi-{{ 'check-circle-fill' if c.passed else 'x-circle-fill' }}"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="d-flex justify-content-between">
+              <strong class="small">{{ c.title }}</strong>
+              <span class="badge bg-light text-muted">{{ t("weight") }} {{ c.weight }}</span>
+            </div>
+            <div class="small text-muted">{{ c.detail }}</div>
+          </div>
+        </div>
+        {% endfor %}
+        {% if not checks %}
+          <p class="text-muted small">{{ t("No check details were recorded for this document.") }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if cert.ocr_text %}
+    <div class="card">
+      <div class="card-header bg-white">
+        <a class="text-decoration-none fw-semibold" data-bs-toggle="collapse" href="#ocrText">
+          <i class="bi bi-file-text"></i> {{ t("Raw OCR output") }} <i class="bi bi-chevron-down small"></i></a>
+      </div>
+      <div class="collapse" id="ocrText">
+        <div class="card-body">
+          <pre class="small bg-light p-3 rounded mb-0" style="white-space:pre-wrap;max-height:300px;overflow:auto">{{ cert.ocr_text }}</pre>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">{{ t("Extracted fields") }}</div>
+      <div class="card-body">
+        <table class="table table-sm small mb-0">
+          <tr><td class="text-muted">{{ t("Certificate number") }}</td><td class="text-end fw-semibold">{{ cert.cert_number or '—' }}</td></tr>
+          <tr><td class="text-muted">{{ t("Issuing authority") }}</td><td class="text-end">{{ cert.issuer or '—' }}</td></tr>
+          <tr><td class="text-muted">{{ t("Type") }}</td><td class="text-end">{{ cert.cert_type or '—' }}</td></tr>
+          <tr><td class="text-muted">{{ t("Issue date") }}</td><td class="text-end">{{ cert.issue_date|nicedate }}</td></tr>
+          <tr><td class="text-muted">{{ t("Valid until") }}</td>
+              <td class="text-end {{ 'text-danger fw-semibold' if cert.is_expired }}">{{ cert.expiry_date|nicedate }}</td></tr>
+          <tr><td class="text-muted">{{ t("Holder on document") }}</td><td class="text-end">{{ cert.holder_name or '—' }}</td></tr>
+          <tr><td class="text-muted">{{ t("Uploaded") }}</td><td class="text-end">{{ cert.uploaded_at|nicedate }}</td></tr>
+          {% if cert.verified_at %}
+          <tr><td class="text-muted">{{ t("Verified at") }}</td><td class="text-end">{{ cert.verified_at|nicedate }}</td></tr>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">{{ t("Uploaded document") }}</div>
+      <div class="card-body text-center">
+        {% if cert.filename.lower().endswith('.pdf') %}
+          <i class="bi bi-file-earmark-pdf display-4 text-danger"></i>
+          <div class="small text-muted">{{ cert.filename }}</div>
+          <a class="btn btn-sm btn-outline-secondary mt-2"
+             href="{{ url_for('static', filename='uploads/certificates/' ~ cert.filename) }}" target="_blank">{{ t("Open PDF") }}</a>
+        {% else %}
+          <a href="{{ url_for('static', filename='uploads/certificates/' ~ cert.filename) }}" target="_blank">
+            <img src="{{ url_for('static', filename='uploads/certificates/' ~ cert.filename) }}"
+                 class="img-fluid rounded border" alt="{{ t("certificate") }}">
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if current_user.is_farmer %}
+    <div class="card">
+      <div class="card-body">
+        {% if cert.status != 'verified' %}
+        <a href="{{ url_for('farmer.upload_certificate', crop_id=crop.id) }}" class="btn btn-success w-100 mb-2">
+          <i class="bi bi-upload"></i> {{ t("Upload a better copy") }}</a>
+        {% endif %}
+        <form method="post" action="{{ url_for('farmer.delete_certificate', cert_id=cert.id) }}"
+              onsubmit="return confirm('Remove this certificate?')">
+          <button class="btn btn-outline-danger w-100 btn-sm">
+            <i class="bi bi-trash"></i> {{ t("Remove this certificate") }}</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

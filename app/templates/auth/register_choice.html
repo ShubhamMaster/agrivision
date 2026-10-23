@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ t("Create an account") }}{% endblock %}
+
+{% block content %}
+<div class="text-center mb-4">
+  <h2 class="fw-bold">{{ t("Create your free account") }}</h2>
+  <p class="text-muted">{{ t("AgriVision keeps the two sides of the market separate. Choose the side you are on — each one gets its own dashboard and tools.") }}</p>
+</div>
+
+<div class="row g-4 justify-content-center">
+  <div class="col-md-5">
+    <a href="{{ url_for('auth.register', role='farmer') }}" class="text-decoration-none text-dark">
+      <div class="av-role-card">
+        <i class="bi bi-tree"></i>
+        <h4 class="fw-bold mt-3">{{ t("I am a Farmer") }}</h4>
+        <p class="text-muted small">{{ t("List your crops, get an AI quality grade and a fair price band, see what buyers are asking for, and sell directly.") }}</p>
+        <ul class="list-unstyled small text-start mt-3">
+          <li><i class="bi bi-check2 text-success"></i> {{ t("AI grading from a photo") }}</li>
+          <li><i class="bi bi-check2 text-success"></i> {{ t("District-level price suggestion") }}</li>
+          <li><i class="bi bi-check2 text-success"></i> {{ t("Demand forecast for your region") }}</li>
+          <li><i class="bi bi-check2 text-success"></i> {{ t("Certificate verification") }}</li>
+        </ul>
+        <span class="btn btn-success w-100 mt-2">{{ t("Register as Farmer") }}</span>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-5">
+    <a href="{{ url_for('auth.register', role='buyer') }}" class="text-decoration-none text-dark">
+      <div class="av-role-card">
+        <i class="bi bi-briefcase"></i>
+        <h4 class="fw-bold mt-3">{{ t("I am a Buyer") }}</h4>
+        <p class="text-muted small">{{ t("Post what you need, browse graded lots with verified quality, compare them side by side and buy straight from the farmer.") }}</p>
+        <ul class="list-unstyled small text-start mt-3">
+          <li><i class="bi bi-check2 text-success"></i> {{ t("Filter by grade, price and certificate") }}</li>
+          <li><i class="bi bi-check2 text-success"></i> {{ t("Side-by-side lot comparison") }}</li>
+          <li><i class="bi bi-check2 text-success"></i> {{ t("Post requirements, receive offers") }}</li>
+          <li><i class="bi bi-check2 text-success"></i> {{ t("Fair-price check on every lot") }}</li>
+        </ul>
+        <span class="btn btn-outline-success w-100 mt-2">{{ t("Register as Buyer") }}</span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<p class="text-center text-muted mt-4">
+  {{ t("Already registered?") }} <a href="{{ url_for('auth.login') }}">{{ t("Log in here") }}</a>
+</p>
+{% endblock %}

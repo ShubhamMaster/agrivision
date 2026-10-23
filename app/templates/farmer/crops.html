@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import grade_badge, cert_badge, empty %}
+{% block title %}{{ t("My crops") }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="fw-bold mb-0"><i class="bi bi-box-seam"></i> {{ t("My crop listings") }}</h4>
+  <a href="{{ url_for('farmer.new_crop') }}" class="btn btn-success">
+    <i class="bi bi-plus-circle"></i> {{ t("List a new crop") }}</a>
+</div>
+
+<ul class="nav nav-pills mb-3">
+  {% for key, label in [('all','All'), ('available','Available'), ('reserved','Reserved'), ('sold','Sold'), ('withdrawn','Withdrawn')] %}
+    <li class="nav-item">
+      <a class="nav-link {{ 'active' if status == key }}"
+         href="{{ url_for('farmer.crops', status=key) }}">{{ label }}</a>
+    </li>
+  {% endfor %}
+</ul>
+
+{% if not items %}
+  {{ empty('box', t('Nothing here'), t('No listings with this status.'), url_for('farmer.new_crop'), 'List a crop') }}
+{% else %}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>{{ t("Lot") }}</th><th>{{ t("Quantity") }}</th><th>{{ t("AI grade") }}</th><th>{{ t("My price") }}</th>
+          <th>{{ t("AI fair band") }}</th><th>{{ t("Certificate") }}</th><th>{{ t("Status") }}</th><th>{{ t("Views") }}</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in items %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              {% if c.cover_photo %}
+                <img src="{{ url_for('static', filename='uploads/crops/' ~ c.cover_photo) }}"
+                     class="av-thumb" style="width:44px;height:44px">
+              {% else %}
+                <div class="av-thumb bg-light d-flex align-items-center justify-content-center" style="width:44px;height:44px">
+                  <i class="bi bi-image text-muted"></i></div>
+              {% endif %}
+              <div>
+                <a href="{{ url_for('farmer.crop_detail', crop_id=c.id) }}" class="fw-semibold text-decoration-none">
+                  {{ crop_name(c.crop_name) }}</a>
+                <div class="small text-muted">{{ c.variety or '—' }} · {{ c.district or '' }}</div>
+              </div>
+            </div>
+          </td>
+          <td>{{ '%g'|format(c.quantity) }} q</td>
+          <td>{{ grade_badge(c.ai_grade, c.ai_quality_score, inline=True) }}</td>
+          <td>
+            {{ c.expected_price|rupee }}
+            {% if c.price_vs_ai == 'above' %}<i class="bi bi-arrow-up-circle text-danger" title="{{ t("Above the fair band") }}"></i>
+            {% elif c.price_vs_ai == 'below' %}<i class="bi bi-arrow-down-circle text-warning" title="{{ t("Below the fair band") }}"></i>
+            {% elif c.price_vs_ai == 'within' %}<i class="bi bi-check-circle text-success" title="{{ t("Inside the fair band") }}"></i>{% endif %}
+          </td>
+          <td class="small text-muted">{{ c.ai_price_min|rupee }} – {{ c.ai_price_max|rupee }}</td>
+          <td>{{ cert_badge(c) }}{% if c.certificate_status == 'not_required' %}<span class="small text-muted">{{ t("Not required") }}</span>{% endif %}</td>
+          <td><span class="badge bg-{{ {'available':'success','reserved':'warning','sold':'secondary','withdrawn':'dark'}[c.status] }}">{{ t(c.status) }}</span></td>
+          <td class="small text-muted">{{ c.views or 0 }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('farmer.crop_detail', crop_id=c.id) }}" class="btn btn-sm btn-outline-success">{{ t("Manage") }}</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

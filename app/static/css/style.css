@@ -1,0 +1,456 @@
+/* ===================================================================
+   AgriVision — visual system.
+
+   The marketplace is a produce catalogue: every lot is photographed as a
+   studio plate on white, so the interface is built to frame those plates
+   rather than compete with them. Colour comes from the produce; the chrome
+   stays in greens, paper tones and hairlines.
+
+   Layered on Bootstrap 5. Bootstrap handles the grid and the components;
+   everything here is either a token, a thing Bootstrap has no component for
+   (the grade stamp, the price band, the demand gauge), or a correction to a
+   Bootstrap default that reads as generic.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   Typeface — bundled, so the app still renders correctly offline.
+   IBM Plex Sans is drawn for technical documents: its figures are
+   tabular by default, which matters on a page where prices are meant to
+   be compared down a column.
+   ------------------------------------------------------------------- */
+@font-face {
+  font-family: "IBM Plex Sans Var";
+  src: url("../vendor/fonts/ibm-plex-sans-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Devanagari for Marathi and Hindi. Declared as a second family rather than a
+   separate stack, with a unicode-range so the browser only downloads it when
+   Devanagari is actually on the page — an English-only visitor never pays for
+   it. Plex has no Devanagari coverage, so without this the interface falls
+   back to whatever the operating system happens to have, which on Windows is
+   often a poor match for the Latin text beside it. */
+@font-face {
+  font-family: "Noto Sans Devanagari Var";
+  src: url("../vendor/fonts/noto-sans-devanagari-devanagari-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+25CC, U+A830-A839, U+A8E0-A8FF;
+}
+
+:root {
+  /* brand */
+  --av-green: #1f6b3b;
+  --av-green-dark: #15492a;
+  --av-green-soft: #e9f2ec;
+
+  /* ink and surfaces */
+  --av-ink: #16211b;          /* near-black, cast green so it sits with the brand */
+  --av-muted: #5f6d65;
+  --av-line: #e2e6e1;
+  --av-paper: #faf9f5;        /* photo wells — warm, so white plates read as objects */
+  --av-canvas: #f4f5f2;
+
+  /* status */
+  --av-amber: #b87309;
+  --av-red: #a8321f;
+
+  /* type scale */
+  --t-micro: .6875rem;
+  --t-small: .8125rem;
+  --t-base: .9375rem;
+  --t-lead: 1.0625rem;
+  --t-price: 1.6rem;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+html, body { height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--av-canvas);
+  color: var(--av-ink);
+  font-family: "IBM Plex Sans Var", "Noto Sans Devanagari Var", "IBM Plex Sans",
+               system-ui, -apple-system, sans-serif;
+  font-size: var(--t-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+main { flex: 1 0 auto; }
+
+/* Devanagari sits lower and needs more vertical room than Latin: conjuncts
+   and the matras above and below the headline stroke collide at the line
+   heights that suit Plex. A touch more leading and size fixes it without
+   changing the Latin pages at all. */
+html[lang="mr"] body, html[lang="hi"] body { line-height: 1.68; font-size: .96rem; }
+html[lang="mr"] h1, html[lang="hi"] h1,
+html[lang="mr"] h2, html[lang="hi"] h2,
+html[lang="mr"] h3, html[lang="hi"] h3,
+html[lang="mr"] h4, html[lang="hi"] h4 { line-height: 1.42; letter-spacing: 0; }
+html[lang="mr"] .av-card-title, html[lang="hi"] .av-card-title {
+  -webkit-line-clamp: 2;    /* Devanagari runs longer — give the title two lines */
+  line-height: 1.4;
+}
+html[lang="mr"] .btn, html[lang="hi"] .btn { line-height: 1.5; }
+html[lang="mr"] .nav-link, html[lang="hi"] .nav-link { font-size: .84rem; }
+
+h1, h2, h3, h4, h5, h6 { letter-spacing: -0.015em; font-weight: 600; }
+
+/* Figures line up down a column — the whole point of a price list. */
+.av-price, .av-stat-value, .table td, .table th, .av-num { font-variant-numeric: tabular-nums; }
+
+/* ---------- navbar ---------- */
+.av-navbar {
+  background: var(--av-green-dark);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .10);
+}
+.av-navbar .navbar-brand { letter-spacing: -0.02em; }
+.av-navbar .nav-link { font-size: var(--t-small); opacity: .88; }
+.av-navbar .nav-link:hover { opacity: 1; color: #fff !important; }
+.av-badge { position: absolute; top: 2px; right: 0; font-size: .6rem; }
+.av-role { font-size: .55rem; vertical-align: middle; }
+
+/* ---------- hero ---------- */
+.av-hero {
+  background: linear-gradient(150deg, var(--av-green-dark) 0%, var(--av-green) 100%);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 3rem 2.25rem;
+  position: relative;
+  overflow: hidden;
+}
+.av-hero h1 { font-weight: 600; letter-spacing: -0.03em; }
+.av-hero .lead { max-width: 56ch; opacity: .92; }
+
+/* ===================================================================
+   THE LOT CARD
+   The most repeated element in the product, so it carries the design.
+   =================================================================== */
+.av-card {
+  background: #fff;
+  border: 1px solid var(--av-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.av-card:hover {
+  border-color: #c7d2c9;
+  box-shadow: 0 2px 14px rgba(22, 33, 27, .07);
+}
+
+/* The plate: a warm well so a white-background photo reads as an object
+   sitting in the card rather than as a hole punched in it. */
+.av-plate {
+  position: relative;
+  background: var(--av-paper);
+  border-bottom: 1px solid var(--av-line);
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.av-plate img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  mix-blend-mode: multiply;   /* melts the photo's white into the well */
+}
+.av-plate-empty { color: #c2cbc4; font-size: 1.6rem; }
+
+.av-card-body { padding: .85rem .9rem 1rem; display: flex; flex-direction: column; flex: 1; }
+
+.av-card-title {
+  font-size: var(--t-base);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.av-card-title a { color: inherit; text-decoration: none; }
+.av-card-title a:hover { color: var(--av-green); }
+.av-variety { color: var(--av-muted); font-weight: 400; }
+
+.av-meta { font-size: var(--t-small); color: var(--av-muted); }
+
+.av-price {
+  font-size: var(--t-price);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--av-ink);
+}
+.av-unit { font-size: var(--t-small); font-weight: 400; color: var(--av-muted); letter-spacing: 0; }
+
+/* ---------- grade stamp ----------
+   A grading mark, the way a crate is stamped — not another coloured pill in
+   a row of coloured pills. Sits on the plate so it never collides with a
+   title that wraps. */
+/* Static by default, and only pinned to a corner when it actually sits on a
+   plate. Absolute positioning in the base rule meant that a stamp dropped
+   into a table cell escaped to the nearest positioned ancestor and landed in
+   the card header. */
+.av-stamp {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  padding: .15rem .35rem .2rem;
+  background: #fff;
+  border: 1px solid var(--av-line);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  line-height: 1;
+  vertical-align: middle;
+}
+.av-plate .av-stamp,
+.av-gallery-main .av-stamp {
+  position: absolute; top: .5rem; right: .5rem;
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(2px);
+}
+.av-stamp-letter { display: block; font-size: 1rem; font-weight: 600; letter-spacing: -0.02em; }
+.av-stamp-score { display: block; font-size: var(--t-micro); color: var(--av-muted); margin-top: 1px; }
+.av-stamp-a { border-color: #b4d6bf; }
+.av-stamp-a .av-stamp-letter { color: var(--av-green); }
+.av-stamp-b .av-stamp-letter { color: var(--av-ink); }
+.av-stamp-c .av-stamp-letter { color: var(--av-muted); }
+.av-stamp-none .av-stamp-letter { color: #b9c2bb; font-size: .8rem; }
+
+/* Compact variant: letter and score on one line, for dense table rows. */
+.av-stamp-inline {
+  flex-direction: row; align-items: baseline; gap: .3rem;
+  padding: .12rem .4rem; min-width: 0;
+}
+.av-stamp-inline .av-stamp-letter { font-size: var(--t-small); }
+.av-stamp-inline .av-stamp-score { margin: 0; }
+
+/* ---------- flags ---------- */
+.av-flag {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: var(--t-micro);
+  padding: .14rem .4rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.av-flag-ok { color: var(--av-green); background: var(--av-green-soft); border-color: #cfe4d6; }
+.av-flag-wait { color: var(--av-amber); background: #fdf5e7; border-color: #f0dfc0; }
+.av-flag-no { color: var(--av-red); background: #fbeeec; border-color: #f0cfc9; }
+.av-flag-plain { color: var(--av-muted); background: #f3f5f2; border-color: var(--av-line); }
+
+/* ---------- price band ----------
+   The track is the fair range and the tick is this lot's asking price, so the
+   question "is this priced sensibly?" is answered by where the tick sits. A
+   left-to-right gradient was wrong here: it read as a progress bar filling
+   up, which implies more-is-better rather than a range with two edges. */
+.av-band { margin: .45rem 0 .15rem; }
+.av-band-track {
+  position: relative; height: 5px; border-radius: 3px;
+  background: #d9e6de;
+  box-shadow: inset 0 0 0 1px rgba(31, 107, 59, .10);
+}
+.av-band-marker {
+  position: absolute; top: -4px; width: 2px; height: 13px;
+  background: var(--av-ink); border-radius: 1px;
+  transform: translateX(-1px);
+  box-shadow: 0 0 0 2px #fff;
+}
+/* Priced outside the fair range — the tick is pinned at an edge, so it has to
+   say so by itself rather than relying on its position. */
+.av-band-marker.is-over { background: var(--av-red); }
+.av-band-marker.is-under { background: var(--av-amber); }
+.av-band-ends {
+  display: flex; justify-content: space-between;
+  font-size: var(--t-micro); color: var(--av-muted); margin-top: .2rem;
+}
+
+/* ---------- stat tiles ---------- */
+.av-stat {
+  background: #fff;
+  border: 1px solid var(--av-line);
+  border-radius: var(--radius);
+  height: 100%;
+}
+.av-stat .card-body { padding: .8rem .9rem; }
+.av-stat-icon {
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.av-stat-value { font-size: 1.3rem; font-weight: 600; line-height: 1.15; letter-spacing: -0.025em; }
+.av-stat-label { font-size: var(--t-small); color: var(--av-muted); }
+
+/* ---------- demand gauge ---------- */
+.av-gauge { flex: 1; height: 6px; border-radius: 3px; background: #e7eae6; overflow: hidden; min-width: 110px; }
+.av-gauge-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+/* ---------- quality metric bars ---------- */
+.av-metric { margin-bottom: .7rem; }
+.av-metric-head { display: flex; justify-content: space-between; font-size: var(--t-small); margin-bottom: .25rem; }
+.av-metric-track { height: 5px; background: #e7eae6; border-radius: 3px; overflow: hidden; }
+.av-metric-fill { height: 100%; border-radius: 3px; }
+
+/* ---------- lot page gallery ---------- */
+.av-gallery-main {
+  background: var(--av-paper);
+  border: 1px solid var(--av-line);
+  border-radius: var(--radius);
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  position: relative;
+}
+.av-gallery-main img { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: multiply; }
+.av-thumb-strip { display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; }
+.av-thumb {
+  width: 68px; height: 52px; object-fit: cover;
+  background: var(--av-paper);
+  border: 1px solid var(--av-line);
+  border-radius: var(--radius-sm);
+  mix-blend-mode: multiply;
+  cursor: pointer;
+  transition: border-color .12s ease;
+}
+.av-thumb:hover, .av-thumb.is-active { border-color: var(--av-green); }
+
+/* ---------- quick-start guide ---------- */
+.av-guide-head { padding: .5rem 0 1.5rem; }
+.av-guide-steps {
+  list-style: none; counter-reset: step; padding: 0; margin: 0 0 1.75rem;
+}
+.av-guide-step {
+  counter-increment: step;
+  display: flex; gap: 1rem; align-items: flex-start;
+  background: #fff;
+  border: 1px solid var(--av-line);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin-bottom: .6rem;
+}
+.av-guide-icon {
+  flex: 0 0 auto;
+  width: 38px; height: 38px; border-radius: var(--radius-sm);
+  background: var(--av-green-soft); color: var(--av-green);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  position: relative;
+}
+/* The steps are a genuine sequence — do this, then this — so numbering them
+   carries information rather than decorating them. */
+.av-guide-icon::after {
+  content: counter(step);
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--av-green); color: #fff;
+  font-size: .64rem; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.av-guide-title { font-size: var(--t-lead); font-weight: 600; margin: 0 0 .15rem; }
+.av-guide-body { font-size: var(--t-base); color: var(--av-muted); margin: 0; max-width: 62ch; }
+.av-guide-actions {
+  border-top: 1px solid var(--av-line);
+  padding-top: 1.1rem;
+}
+
+/* ---------- language switcher ---------- */
+.av-lang .dropdown-item.is-active { background: var(--av-green-soft); color: var(--av-green); font-weight: 600; }
+.av-lang-code { font-size: var(--t-micro); opacity: .75; }
+
+/* ---------- role chooser ---------- */
+.av-role-card {
+  border: 1px solid var(--av-line); border-radius: var(--radius);
+  padding: 2rem 1.5rem; text-align: center; height: 100%;
+  background: #fff; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.av-role-card:hover { border-color: var(--av-green); box-shadow: 0 2px 16px rgba(22, 33, 27, .08); }
+.av-role-card i { font-size: 2.4rem; color: var(--av-green); }
+
+/* ---------- certificate checks ---------- */
+.av-check { display: flex; gap: .7rem; padding: .65rem .2rem; border-bottom: 1px solid #f0f2f0; }
+.av-check:last-child { border-bottom: 0; }
+.av-check-icon { font-size: 1rem; line-height: 1.35; }
+
+/* ---------- chat ---------- */
+.av-chat { max-height: 360px; overflow-y: auto; padding-right: .25rem; }
+.av-msg {
+  max-width: 76%; padding: .5rem .8rem; border-radius: 10px;
+  margin-bottom: .45rem; font-size: var(--t-base);
+}
+.av-msg-mine { background: var(--av-green); color: #fff; margin-left: auto; border-bottom-right-radius: 2px; }
+.av-msg-theirs { background: #fff; border: 1px solid var(--av-line); border-bottom-left-radius: 2px; }
+
+/* ---------- timeline ---------- */
+.av-timeline { list-style: none; padding-left: 0; margin: 0; }
+.av-timeline li {
+  position: relative; padding-left: 1.4rem; padding-bottom: .85rem;
+  border-left: 1px solid var(--av-line); margin-left: .35rem;
+}
+.av-timeline li::before {
+  content: ""; position: absolute; left: -5px; top: .3rem;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--av-green); border: 2px solid var(--av-canvas);
+}
+.av-timeline li:last-child { border-left-color: transparent; }
+
+/* ---------- cards, tables, forms ---------- */
+.card { border: 1px solid var(--av-line); border-radius: var(--radius); }
+.card-header { background: #fff; border-bottom: 1px solid var(--av-line); font-size: var(--t-base); }
+.table { font-size: var(--t-small); }
+.table > :not(caption) > * > * { padding: .6rem .7rem; }
+.table-light th { background: #f6f8f6; font-weight: 600; color: var(--av-muted); font-size: var(--t-small); }
+.form-label { font-size: var(--t-small); font-weight: 500; margin-bottom: .25rem; }
+.form-control, .form-select { font-size: var(--t-base); border-color: #d8ded9; }
+.form-control:focus, .form-select:focus {
+  border-color: var(--av-green); box-shadow: 0 0 0 3px rgba(31, 107, 59, .12);
+}
+.form-text { font-size: var(--t-micro); }
+.btn { font-size: var(--t-base); border-radius: var(--radius-sm); }
+.btn-success { background: var(--av-green); border-color: var(--av-green); }
+.btn-success:hover { background: var(--av-green-dark); border-color: var(--av-green-dark); }
+.btn-outline-success { color: var(--av-green); border-color: #bcd6c4; }
+.btn-outline-success:hover { background: var(--av-green); border-color: var(--av-green); }
+.nav-pills .nav-link { font-size: var(--t-small); color: var(--av-muted); }
+.nav-pills .nav-link.active { background: var(--av-green); }
+.text-muted { color: var(--av-muted) !important; }
+
+/* Visible keyboard focus everywhere, not just on form controls. */
+a:focus-visible, button:focus-visible, .av-thumb:focus-visible, .form-check-input:focus-visible {
+  outline: 2px solid var(--av-green);
+  outline-offset: 2px;
+}
+
+/* ---------- footer ---------- */
+.av-footer { background: var(--av-green-dark); color: #c5d8cc; font-size: var(--t-small); }
+.av-footer a { color: #c5d8cc; text-decoration: none; }
+.av-footer a:hover { color: #fff; }
+
+/* ---------- misc ---------- */
+.av-sticky { position: sticky; top: 84px; }
+.table-compare th { background: var(--av-green-soft); }
+.cursor-pointer { cursor: pointer; }
+
+#compareBar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1030;
+  background: var(--av-ink); color: #fff; padding: .65rem 0;
+  box-shadow: 0 -2px 14px rgba(0, 0, 0, .18); display: none;
+}
+
+@media (max-width: 575.98px) {
+  :root { --t-price: 1.4rem; }
+  .av-hero { padding: 2rem 1.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

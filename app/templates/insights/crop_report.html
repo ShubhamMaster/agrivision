@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import demand_meter, price_band %}
+{% block title %}{{ crop_name }} market report{% endblock %}
+
+{% block content %}
+<nav class="small mb-2">
+  <a href="{{ url_for('insights.overview') }}" class="text-decoration-none text-muted">
+    <i class="bi bi-arrow-left"></i> {{ t("All crops") }}</a>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0">{{ crop_name }} — market report</h4>
+    <div class="small text-muted">
+      {{ district or state or 'All India' }}
+      {% if trend.ok %}· data scope: {{ trend.scope }}{% endif %}
+    </div>
+  </div>
+  <span class="badge bg-{{ demand.colour }} fs-6">{{ demand.label }} · {{ '%.0f'|format(demand.index) }}/100</span>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <!-- chart -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-bar-chart-line"></i> {{ t("Price history and 6-week forecast") }}
+      </div>
+      <div class="card-body">
+        {% if trend.ok %}
+          <div style="height:320px">
+            <canvas id="trendChart"
+                    data-url="{{ url_for('insights.api_trend', crop=crop_name, state=state, district=district) }}"></canvas>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">{{ trend.message }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if trend.ok %}
+    <div class="card mb-4">
+      <div class="card-header fw-semibold"><i class="bi bi-truck"></i> {{ t("Weekly mandi arrivals (supply)") }}</div>
+      <div class="card-body">
+        <div style="height:180px"><canvas id="arrivalChart"></canvas></div>
+        <p class="small text-muted mt-2 mb-0">
+          {{ t("Each bar is one week of arrivals — the quantity reaching the market. Falling arrivals with firm prices mean
+          supply is tightening — usually a good time for a farmer to sell.") }}
+        </p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- demand drivers -->
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-diagram-3"></i> {{ t("What is driving demand") }}</div>
+      <div class="card-body">
+        {{ demand_meter(demand) }}
+        <div class="alert alert-light border small mt-3">{{ demand.advice }}</div>
+
+        <ul class="av-timeline mt-3 mb-0">
+          {% for d in demand.drivers %}
+          <li>
+            <div class="d-flex justify-content-between">
+              <strong>{{ d.name }}</strong>
+              <span class="badge bg-{{ 'success' if d.positive else 'danger' }}-subtle text-{{ 'success' if d.positive else 'danger' }}">{{ d.value }}</span>
+            </div>
+            <div class="small text-muted">{{ d.detail }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <!-- forecast summary -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold"><i class="bi bi-compass"></i> {{ t("Six-week outlook") }}</div>
+      <div class="card-body">
+        {% if forecast.ok %}
+          <div class="text-center mb-3">
+            <div class="display-6 fw-bold text-{{ 'success' if forecast.change_pct > 0 else ('danger' if forecast.change_pct < 0 else 'secondary') }}">
+              {{ '%+.1f'|format(forecast.change_pct) }}%</div>
+            <div class="small text-muted">{{ t("projected change over") }} {{ forecast.horizon_weeks }} {{ t("weeks") }}</div>
+          </div>
+          <table class="table table-sm small">
+            <tr><td class="text-muted">{{ t("Price now") }}</td><td class="text-end fw-semibold">{{ forecast.from_price|rupee }}</td></tr>
+            <tr><td class="text-muted">{{ t("Projected") }}</td><td class="text-end fw-semibold">{{ forecast.to_price|rupee }}</td></tr>
+            <tr><td class="text-muted">{{ t("Direction") }}</td><td class="text-end">{{ forecast.direction }}</td></tr>
+          </table>
+          <div class="small text-muted">{{ forecast.note }}</div>
+
+          <hr>
+          <table class="table table-sm small mb-0">
+            <thead><tr><th>{{ t("Week") }}</th><th class="text-end">{{ t("Projected") }}</th><th class="text-end">{{ t("Range") }}</th></tr></thead>
+            <tbody>
+              {% for p in forecast.points %}
+              <tr>
+                <td>{{ p.label }}</td>
+                <td class="text-end fw-semibold">{{ p.price|rupee }}</td>
+                <td class="text-end text-muted" style="font-size:.75rem">{{ p.band_low|rupee }}–{{ p.band_high|rupee }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="text-muted small mb-0">{{ forecast.message }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- fair price -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold"><i class="bi bi-currency-rupee"></i> {{ t("Fair price today (Grade B)") }}</div>
+      <div class="card-body">
+        {{ price_band(band) }}
+        <table class="table table-sm small mt-3 mb-0">
+          {% for f in band.factors %}
+          <tr>
+            <td class="text-muted">{{ f.name }}</td>
+            <td class="text-end fw-semibold">{{ f.effect }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        <div class="small text-muted mt-2">
+          {{ t("Grade A lots command about 18% more, Grade C about 18% less than this band.") }}
+        </div>
+      </div>
+    </div>
+
+    <!-- platform supply/demand -->
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-shop"></i> {{ t("On AgriVision right now") }}</div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-6 border-end">
+            <div class="fs-3 fw-bold text-success">{{ supply }}</div>
+            <div class="small text-muted">{{ t("lots listed") }}</div>
+          </div>
+          <div class="col-6">
+            <div class="fs-3 fw-bold text-warning">{{ wanted }}</div>
+            <div class="small text-muted">{{ t("open requirements") }}</div>
+          </div>
+        </div>
+        <hr>
+        <p class="small text-muted mb-0">
+          {% if wanted > supply %}
+            {{ t("More buyers than sellers for") }} {{ crop_name }} — {{ t("farmers have the upper hand.") }}
+          {% elif supply > wanted %}
+            {{ t("More listings than requirements — buyers can negotiate harder.") }}
+          {% else %}
+            {{ t("Supply and demand are balanced on the platform.") }}
+          {% endif %}
+        </p>
+        {% if info.unit_note %}
+          <div class="alert alert-light border small mt-3 mb-0">
+            <i class="bi bi-lightbulb"></i> {{ info.unit_note }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

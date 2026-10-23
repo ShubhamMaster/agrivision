@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ t("How it works") }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-9">
+    <h2 class="fw-bold mb-3">{{ t("How AgriVision works") }}</h2>
+    <p class="lead text-muted">
+      {{ t("AgriVision is a direct farmer-to-buyer marketplace. Four AI modules sit behind the
+      screens and do the work an agent or commission agent would otherwise do — grading the
+      produce, fixing a fair price, judging demand and checking the paperwork.") }}
+    </p>
+
+    <!-- 1 -->
+    <div class="card mb-3"><div class="card-body">
+      <h5 class="fw-bold"><i class="bi bi-camera text-success"></i> {{ t("1 · Crop quality grading (computer vision)") }}</h5>
+      <p class="mb-2">{{ t("When a farmer uploads photos of a lot, OpenCV separates the produce from the
+        background and measures four independent attributes:") }}</p>
+      <ul>
+        <li><strong>{{ t("Colour") }}</strong> {{ t("— how much of the produce falls inside the healthy hue range for that crop, and how vivid it is.") }}</li>
+        <li><strong>{{ t("Uniformity") }}</strong> {{ t("— circular standard deviation of hue; a consistent lot grades higher because buyers pay for consistency.") }}</li>
+        <li><strong>{{ t("Defects") }}</strong> {{ t("— dark-spot and bruise ratio found by adaptive thresholding inside the produce mask.") }}</li>
+        <li><strong>{{ t("Size") }}</strong> {{ t("— contour analysis of individual units and how consistent they are.") }}</li>
+      </ul>
+      <p class="mb-0">{{ t("These are fused into a 0–100 score and a Grade A / B / C verdict. A blurred or
+        badly lit photo caps the score instead of inflating it, and the farmer is told to re-shoot.") }}</p>
+    </div></div>
+
+    <!-- 2 -->
+    <div class="card mb-3"><div class="card-body">
+      <h5 class="fw-bold"><i class="bi bi-currency-rupee text-success"></i> {{ t("2 · Price recommendation") }}</h5>
+      <p class="mb-2">{{ t("The suggested price starts from the median modal price of the last 45 days in
+        the farmer's own district and is then adjusted by four multiplicative factors:") }}</p>
+      <pre class="bg-light p-3 rounded small mb-2">price = district_base_price
+        × grade_factor      (A +18%, B 0%, C −18%)
+        × season_factor     (lean-supply month +12%, harvest glut −12%)
+        × demand_factor     (from the demand index)
+        × premium_factor    (organic +15%, verified certificate +8%)</pre>
+      <p class="mb-0">{{ t("Every factor is shown to the farmer with its reason, so the number is never a
+        black box. The band width comes from that crop's historical volatility — wide for tomato,
+        narrow for wheat.") }}</p>
+    </div></div>
+
+    <!-- 3 -->
+    <div class="card mb-3"><div class="card-body">
+      <h5 class="fw-bold"><i class="bi bi-graph-up-arrow text-success"></i> {{ t("3 · Demand prediction") }}</h5>
+      <p class="mb-2">{{ t("A 0–100 demand index fuses four independent signals:") }}</p>
+      <ul class="mb-2">
+        <li><strong>{{ t("Price momentum") }}</strong> {{ t("— last 30 days against the 90 days before.") }}</li>
+        <li><strong>{{ t("Supply pressure") }}</strong> {{ t("— falling mandi arrivals with firm prices means tight supply.") }}</li>
+        <li><strong>{{ t("Season") }}</strong> {{ t("— the crop's own lean/glut calendar.") }}</li>
+        <li><strong>{{ t("Marketplace pull") }}</strong> {{ t("— open buyer requirements against available listings on AgriVision itself.") }}</li>
+      </ul>
+      <p class="mb-0">{{ t("A least-squares trend over the weekly means, modulated by seasonality, gives a
+        six-week price forecast with a widening confidence band.") }}</p>
+    </div></div>
+
+    <!-- 4 -->
+    <div class="card mb-3"><div class="card-body">
+      <h5 class="fw-bold"><i class="bi bi-patch-check text-success"></i> {{ t("4 · OCMR certificate verification") }}</h5>
+      <p class="mb-2">{{ t("OCMR — Optical Certificate &amp; Mark Recognition — is the six-stage pipeline that
+        reads a quality certificate and decides whether to trust it:") }}</p>
+      <ol class="mb-2">
+        <li>{{ t("Image preparation: denoise, deskew, adaptive binarisation.") }}</li>
+        <li>{{ t("Tesseract OCR with per-word confidence.") }}</li>
+        <li>{{ t("Field extraction by regular expression — number, issuer, dates, holder, crop, grade.") }}</li>
+        <li>{{ t("QR / barcode detection and cross-check against the printed number.") }}</li>
+        <li>{{ t("Error Level Analysis to flag digitally edited documents.") }}</li>
+        <li>{{ t("A ten-check rule engine producing a confidence score.") }}</li>
+      </ol>
+      <p class="mb-0">{{ t("Expired certificates, wrong-crop certificates and unreadable scans are rejected
+        outright; borderline cases are queued for manual review rather than silently passed.") }}</p>
+    </div></div>
+
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i> <strong>{{ t("Why this matters.") }}</strong> {{ t("A farmer who does not know
+      the going rate is at the mercy of whoever is standing in the field. Transparent grading and a
+      published fair-price band shift that balance — and a buyer gets a quality signal he can filter on
+      before he ever travels to see the lot.") }}
+    </div>
+  </div>
+
+  <div class="col-lg-3">
+    <div class="card av-sticky">
+      <div class="card-body">
+        <h6 class="fw-bold">{{ t("Get started") }}</h6>
+        <p class="small text-muted">{{ t("Registration is free for both sides.") }}</p>
+        <a href="{{ url_for('auth.register', role='farmer') }}" class="btn btn-success w-100 mb-2">
+          <i class="bi bi-tree"></i> {{ t("Register as Farmer") }}</a>
+        <a href="{{ url_for('auth.register', role='buyer') }}" class="btn btn-outline-success w-100">
+          <i class="bi bi-briefcase"></i> {{ t("Register as Buyer") }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

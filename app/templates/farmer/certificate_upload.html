@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ t("Upload certificate") }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-patch-check"></i> {{ t("Upload quality certificate") }}</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          {{ t("For") }} <strong>{{ crop_name(crop.crop_name) }}</strong> ({{ '%g'|format(crop.quantity) }} quintal,
+          {{ crop.district or '' }}). The document is read by OCR and checked against the issuing
+          authority's format, its validity dates and the crop on this listing.
+        </p>
+
+        <form method="post" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label">{{ t("Certificate type") }}</label>
+            <select name="cert_type" class="form-select">
+              <option value="">{{ t("— detect automatically —") }}</option>
+              {% for key, meta in authorities.items() %}
+                <option value="{{ key }}">{{ meta.full }}</option>
+              {% endfor %}
+              <option value="Other">{{ t("Other") }}</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">{{ t("Certificate file") }} <span class="text-danger">*</span></label>
+            <input type="file" class="form-control" name="certificate" accept=".jpg,.jpeg,.png,.pdf" required>
+            <div class="form-text">
+              {{ t("JPG, PNG or PDF, up to 8 MB. Scan or photograph the") }} <em>{{ t("whole page") }}</em>, flat and
+              well lit — cropped or angled photos fail the readability check.
+            </div>
+          </div>
+
+          <button class="btn btn-success">
+            <i class="bi bi-shield-check"></i> {{ t("Upload &amp; verify") }}</button>
+          <a href="{{ url_for('farmer.crop_detail', crop_id=crop.id) }}" class="btn btn-link text-muted">{{ t("Cancel") }}</a>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">{{ t("What the OCMR check does") }}</div>
+      <div class="card-body small">
+        <ol class="ps-3 mb-0">
+          <li class="mb-1"><strong>{{ t("Prepare") }}</strong> {{ t("— denoise, deskew and binarise the scan.") }}</li>
+          <li class="mb-1"><strong>{{ t("Read") }}</strong> {{ t("— Tesseract OCR extracts the text with a confidence score.") }}</li>
+          <li class="mb-1"><strong>{{ t("Extract") }}</strong> {{ t("— certificate number, issuing authority, issue and expiry dates, holder, crop and grade.") }}</li>
+          <li class="mb-1"><strong>{{ t("Mark") }}</strong> {{ t("— any QR code is decoded and matched against the printed number.") }}</li>
+          <li class="mb-1"><strong>{{ t("Tamper check") }}</strong> {{ t("— error-level analysis flags digitally edited documents.") }}</li>
+          <li><strong>{{ t("Decide") }}</strong> {{ t("— ten weighted checks produce a confidence score and a verdict.") }}</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="alert alert-light border small">
+      <strong><i class="bi bi-x-octagon text-danger"></i> {{ t("Automatic rejection happens when") }}</strong>
+      <ul class="ps-3 mb-0 mt-1">
+        <li>{{ t("the document cannot be read at all;") }}</li>
+        <li>{{ t("the certificate has already expired;") }}</li>
+        <li>{{ t("it refers to a different crop than this listing.") }}</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

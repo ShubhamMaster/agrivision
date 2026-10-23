@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="{{ current_lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ APP_NAME }}{% endblock %} · {{ APP_NAME }}</title>
+
+  <!-- Bootstrap, its icon font, Chart.js and both typefaces are all served
+       from app/static/vendor, so AgriVision runs with no internet connection. -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="{{ url_for('static', filename='vendor/fonts/ibm-plex-sans-latin-wght-normal.woff2') }}">
+  {% if page_script == 'devanagari' %}
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="{{ url_for('static', filename='vendor/fonts/noto-sans-devanagari-devanagari-wght-normal.woff2') }}">
+  {% endif %}
+  <link href="{{ url_for('static', filename='vendor/css/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='vendor/css/bootstrap-icons.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark av-navbar sticky-top">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="{{ url_for('main.home') }}">
+      <i class="bi bi-flower3"></i> Agri<span class="text-warning">Vision</span>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        {% if current_user.is_authenticated and current_user.is_farmer %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('farmer.dashboard') }}"><i class="bi bi-speedometer2"></i> {{ t('Dashboard') }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('farmer.crops') }}"><i class="bi bi-box-seam"></i> {{ t('My Crops') }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('farmer.requirements') }}"><i class="bi bi-megaphone"></i> {{ t('Buyer Requirements') }}</a></li>
+        {% elif current_user.is_authenticated and current_user.is_buyer %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('buyer.dashboard') }}"><i class="bi bi-speedometer2"></i> {{ t('Dashboard') }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('buyer.browse') }}"><i class="bi bi-shop"></i> {{ t('Marketplace') }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('buyer.requirements') }}"><i class="bi bi-card-checklist"></i> {{ t('My Requirements') }}</a></li>
+        {% endif %}
+
+        {% if current_user.is_authenticated %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('deals.inbox') }}"><i class="bi bi-inbox"></i> {{ t('Deals') }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('insights.overview') }}"><i class="bi bi-graph-up-arrow"></i> {{ t('Market Insights') }}</a></li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('main.about') }}">{{ t('How it works') }}</a></li>
+        {% endif %}
+      </ul>
+
+      <ul class="navbar-nav">
+        <!-- Language. Placed before sign-in, because someone who cannot read
+             the interface needs to change it before they can do anything
+             else — including register. -->
+        <li class="nav-item dropdown av-lang">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"
+             aria-label="{{ t('Language') }}">
+            <i class="bi bi-translate"></i>
+            <span class="d-lg-none">{{ t('Language') }}</span>
+            <span class="d-none d-lg-inline">{{ LANGUAGES[current_lang].native }}</span>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            {% for code, meta in LANGUAGES.items() %}
+              <li>
+                <a class="dropdown-item {{ 'is-active' if code == current_lang }}"
+                   href="{{ url_for('main.set_language', code=code, next=request.full_path) }}"
+                   lang="{{ code }}">
+                  {{ meta.native }}
+                  <span class="av-lang-code">{{ meta.name if meta.name != meta.native }}</span>
+                  {% if code == current_lang %}<i class="bi bi-check2 float-end"></i>{% endif %}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </li>
+
+        {% if current_user.is_authenticated %}
+          {% set unread = current_user.unread_notification_count() %}
+          <li class="nav-item">
+            <a class="nav-link position-relative" href="{{ url_for('main.notifications') }}"
+               aria-label="{{ t('Notifications') }}">
+              <i class="bi bi-bell"></i>
+              {% if unread %}<span class="badge rounded-pill bg-danger av-badge">{{ unread }}</span>{% endif %}
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+              <i class="bi bi-person-circle"></i> {{ current_user.full_name.split()[0] }}
+              <span class="badge bg-{{ 'success' if current_user.is_farmer else 'info' }} av-role">{{ t(current_user.role) }}</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="bi bi-gear"></i> {{ t('Profile & settings') }}</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('main.guide') }}"><i class="bi bi-life-preserver"></i> {{ t('How to use AgriVision') }}</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> {{ t('Log out') }}</a></li>
+            </ul>
+          </li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">{{ t('Log in') }}</a></li>
+          <li class="nav-item"><a class="btn btn-warning btn-sm fw-semibold ms-2 mt-1" href="{{ url_for('auth.register_choice') }}">{{ t('Register free') }}</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container my-3">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-info-circle"></i> {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<main class="container pb-5">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="av-footer mt-auto py-4">
+  <div class="container">
+    <div class="row gy-3">
+      <div class="col-md-5">
+        <h6 class="fw-bold text-white"><i class="bi bi-flower3"></i> AgriVision</h6>
+        <p class="small mb-0">{{ t('A direct farmer-to-buyer marketplace with AI crop grading, price intelligence, demand prediction and certificate verification — built to cut out the middlemen.') }}</p>
+      </div>
+      <div class="col-md-3">
+        <h6 class="fw-bold text-white">{{ t('Platform') }}</h6>
+        <ul class="list-unstyled small mb-0">
+          <li><a href="{{ url_for('main.home') }}">{{ t('Home') }}</a></li>
+          <li><a href="{{ url_for('main.about') }}">{{ t('How it works') }}</a></li>
+          {% if current_user.is_authenticated %}<li><a href="{{ url_for('insights.overview') }}">{{ t('Market Insights') }}</a></li>{% endif %}
+        </ul>
+      </div>
+      <div class="col-md-4">
+        <h6 class="fw-bold text-white">{{ t('AI modules') }}</h6>
+        <ul class="list-unstyled small mb-0">
+          <li>{{ t('Computer-vision crop grading') }}</li>
+          <li>{{ t('Regional price recommendation') }}</li>
+          <li>{{ t('Demand index & 6-week forecast') }}</li>
+          <li>{{ t('OCMR certificate verification') }}</li>
+        </ul>
+      </div>
+    </div>
+    <hr class="border-secondary">
+    <div class="small text-center mb-0">© {{ current_year }} AgriVision — academic project build.</div>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='vendor/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/js/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

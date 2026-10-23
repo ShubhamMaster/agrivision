@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import crop_card, grade_badge, demand_meter, deal_badge, empty %}
+{% block title %}{{ crop_name(req.crop_name) }} requirement{% endblock %}
+
+{% block content %}
+<nav class="small mb-2">
+  <a href="{{ url_for('buyer.requirements') }}" class="text-decoration-none text-muted">
+    <i class="bi bi-arrow-left"></i> {{ t("My requirements") }}</a>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="fw-bold mb-1">{{ crop_name(req.crop_name) }}
+      {% if req.variety %}<span class="text-muted fw-normal">· {{ req.variety }}</span>{% endif %}</h4>
+    <div class="d-flex gap-2 flex-wrap">
+      <span class="badge bg-{{ 'success' if req.status == 'open' else 'secondary' }}">{{ req.status }}</span>
+      <span class="badge bg-light text-muted">{{ '%g'|format(req.quantity) }} quintal</span>
+      <span class="badge bg-light text-muted">{{ t("Grade") }} {{ req.min_grade }} {{ t("or better") }}</span>
+      {% if req.organic_only %}<span class="badge bg-success-subtle text-success">{{ t("Organic only") }}</span>{% endif %}
+      {% if req.certificate_mandatory %}<span class="badge bg-warning-subtle text-warning">{{ t("Certificate required") }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="btn-group">
+    <a href="{{ url_for('buyer.edit_requirement', req_id=req.id) }}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-pencil"></i> {{ t("Edit") }}</a>
+    <form method="post" action="{{ url_for('buyer.close_requirement', req_id=req.id) }}">
+      <button class="btn btn-sm btn-outline-secondary">
+        {{ 'Reopen' if req.status == 'closed' else 'Close' }}</button>
+    </form>
+    <form method="post" action="{{ url_for('buyer.delete_requirement', req_id=req.id) }}"
+          onsubmit="return confirm('Delete this requirement?')">
+      <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <!-- offers received -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-inbox"></i> {{ t("Offers received") }} ({{ offers|length }})
+      </div>
+      <div class="card-body p-0">
+        {% if not offers %}
+          <p class="text-muted small p-3 mb-0">{{ t("No farmer has offered against this requirement yet.") }}</p>
+        {% else %}
+        <div class="list-group list-group-flush">
+          {% for d in offers %}
+          <a href="{{ url_for('deals.detail', deal_id=d.id) }}" class="list-group-item list-group-item-action">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ d.farmer.full_name }}</strong>
+                — {{ '%g'|format(d.quantity) }} {{ t("q at") }} {{ d.offered_price|rupee }}/q
+                {% if d.crop %}{{ grade_badge(d.crop.ai_grade, d.crop.ai_quality_score, inline=True) }}{% endif %}
+                <div class="small text-muted">{{ t("Total") }} {{ d.total_value|rupee }} ·
+                  {{ d.farmer.district or '' }} · {{ d.created_at|ago }}</div>
+              </div>
+              {{ deal_badge(d) }}
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- matching lots -->
+    <h5 class="fw-bold mb-2">{{ t("Lots that meet every condition") }} ({{ matches|length }})</h5>
+    {% if not matches %}
+      <div class="alert alert-light border small">
+        {{ t("No listed lot currently satisfies all the conditions of this requirement.
+        Relaxing the grade, the price ceiling or the certificate condition would widen the pool.") }}
+      </div>
+    {% else %}
+      <div class="row g-3 mb-4">
+        {% for c in matches %}{{ crop_card(c, url_for('buyer.crop_detail', crop_id=c.id)) }}{% endfor %}
+      </div>
+    {% endif %}
+
+    {% if near_misses %}
+    <h6 class="fw-bold mb-2 text-muted">{{ t("Close, but not matching every condition") }}</h6>
+    <div class="row g-3">
+      {% for c in near_misses %}{{ crop_card(c, url_for('buyer.crop_detail', crop_id=c.id)) }}{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">{{ t("Requirement details") }}</div>
+      <div class="card-body">
+        <table class="table table-sm small mb-0">
+          <tr><td class="text-muted">{{ t("Quantity") }}</td><td class="text-end fw-semibold">{{ '%g'|format(req.quantity) }} quintal</td></tr>
+          <tr><td class="text-muted">{{ t("Price range") }}</td><td class="text-end">
+            {% if req.price_min or req.price_max %}{{ req.price_min|rupee }} – {{ req.price_max|rupee }}{% else %}{{ t("Open") }}{% endif %}</td></tr>
+          <tr><td class="text-muted">{{ t("Minimum grade") }}</td><td class="text-end">{{ t("Grade") }} {{ req.min_grade }}</td></tr>
+          <tr><td class="text-muted">{{ t("Region") }}</td><td class="text-end">{{ req.district or '—' }}, {{ req.state or '' }}</td></tr>
+          <tr><td class="text-muted">{{ t("Delivery to") }}</td><td class="text-end">{{ req.delivery_location or '—' }}</td></tr>
+          <tr><td class="text-muted">{{ t("Needed by") }}</td>
+              <td class="text-end {{ 'text-danger' if req.is_expired }}">{{ req.needed_by|nicedate }}</td></tr>
+          <tr><td class="text-muted">{{ t("Posted") }}</td><td class="text-end">{{ req.created_at|nicedate }}</td></tr>
+        </table>
+        {% if req.notes %}<hr><p class="small mb-0">{{ req.notes }}</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-graph-up-arrow"></i> {{ crop_name(req.crop_name) }} {{ t("market") }}</div>
+      <div class="card-body">
+        {{ demand_meter(demand) }}
+        <p class="small text-muted mt-3 mb-2">{{ demand.advice }}</p>
+        {% if trend.ok %}
+        <table class="table table-sm small mb-0">
+          <tr><td class="text-muted">{{ t("Latest modal price") }}</td><td class="text-end fw-semibold">{{ trend.latest|rupee }}</td></tr>
+          <tr><td class="text-muted">{{ t("Period average") }}</td><td class="text-end">{{ trend.average|rupee }}</td></tr>
+          <tr><td class="text-muted">{{ t("Trend") }}</td><td class="text-end">{{ trend.direction }} ({{ trend.change_pct }}%)</td></tr>
+        </table>
+        {% if req.price_max and trend.latest and req.price_max < trend.latest %}
+          <div class="alert alert-warning small mt-2 mb-0">
+            <i class="bi bi-exclamation-triangle"></i> {{ t("Your ceiling of") }} {{ req.price_max|rupee }} {{ t("is below the
+            current market price of") }} {{ trend.latest|rupee }} — expect few offers.
+          </div>
+        {% endif %}
+        {% endif %}
+        <a href="{{ url_for('insights.crop_report', crop_name=req.crop_name) }}"
+           class="btn btn-sm btn-outline-success w-100 mt-2">{{ t("Full report") }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

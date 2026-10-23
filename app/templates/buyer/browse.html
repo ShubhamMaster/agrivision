@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import crop_card, empty %}
+{% block title %}{{ t("Marketplace") }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- ======= filters ======= -->
+  <div class="col-lg-3">
+    <div class="card av-sticky">
+      <div class="card-header fw-semibold"><i class="bi bi-funnel"></i> {{ t("Filters") }}</div>
+      <div class="card-body">
+        <form method="get">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">{{ t("Crop") }}</label>
+            <select name="crop" class="form-select form-select-sm">
+              <option value="">{{ t("All crops") }}</option>
+              {% for c in CROP_LIST %}
+                <option value="{{ c }}" {{ 'selected' if f.crop == c }}>{{ crop_name(c) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">{{ t("Minimum grade") }}</label>
+            <select name="grade" class="form-select form-select-sm">
+              <option value="">{{ t("Any grade") }}</option>
+              <option value="A" {{ 'selected' if f.grade == 'A' }}>{{ t("Grade A only") }}</option>
+              <option value="B" {{ 'selected' if f.grade == 'B' }}>{{ t("Grade B or better") }}</option>
+              <option value="C" {{ 'selected' if f.grade == 'C' }}>{{ t("Grade C or better") }}</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">{{ t("District") }}</label>
+            <input list="districtList" name="district" class="form-control form-control-sm"
+                   value="{{ f.district }}" placeholder="{{ t('any') }}">
+            <datalist id="districtList">
+              {% for d in districts %}<option value="{{ d }}">{% endfor %}
+            </datalist>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">{{ t("Maximum price (₹/quintal)") }}</label>
+            <input type="number" name="max_price" class="form-control form-control-sm"
+                   value="{{ f.max_price or '' }}" placeholder="{{ t('no limit') }}">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">{{ t("Minimum quantity (quintal)") }}</label>
+            <input type="number" step="0.1" name="min_qty" class="form-control form-control-sm"
+                   value="{{ f.min_qty or '' }}" placeholder="{{ t('any') }}">
+          </div>
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="organic" value="1" id="forg"
+                   {{ 'checked' if f.organic }}>
+            <label class="form-check-label small" for="forg"><i class="bi bi-leaf text-success"></i> {{ t("Organic only") }}</label>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="certified" value="1" id="fcert"
+                   {{ 'checked' if f.certified }}>
+            <label class="form-check-label small" for="fcert"><i class="bi bi-patch-check text-success"></i> {{ t("Certificate verified") }}</label>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">{{ t("Sort by") }}</label>
+            <select name="sort" class="form-select form-select-sm">
+              {% for key, label in sort_options.items() %}
+                <option value="{{ key }}" {{ 'selected' if f.sort == key }}>{{ t(label) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <button class="btn btn-success w-100 btn-sm"><i class="bi bi-search"></i> {{ t("Apply filters") }}</button>
+          <a href="{{ url_for('buyer.browse') }}" class="btn btn-link btn-sm w-100 text-muted">{{ t("Clear all") }}</a>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= results ======= -->
+  <div class="col-lg-9">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h4 class="fw-bold mb-0">{{ t("Marketplace") }}</h4>
+        <div class="small text-muted">{{ t('{n} lots available', n=items|length) }}{% if f.crop %} · {{ crop_name(f.crop) }}{% endif %}</div>
+      </div>
+      <a href="{{ url_for('buyer.new_requirement') }}" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-megaphone"></i> {{ t("Can't find it? Post a requirement") }}</a>
+    </div>
+
+    {% if not items %}
+      {{ empty('search', t('No lots match these filters'),
+               t('Try widening the grade, price or district filter — or post a requirement so farmers come to you.'),
+               url_for('buyer.new_requirement'), 'Post a requirement') }}
+    {% else %}
+      <div class="row g-3">
+        {% for c in items %}
+          {{ crop_card(c, url_for('buyer.crop_detail', crop_id=c.id), show_farmer=True, compare=True) }}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- comparison tray -->
+<div id="compareBar">
+  <div class="container d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-columns-gap"></i>
+      <strong id="compareCount">0</strong> {{ t("lot(s) selected for comparison (max 4)") }}</span>
+    <div>
+      <button class="btn btn-sm btn-outline-light me-2" id="compareClear">{{ t("Clear") }}</button>
+      <a class="btn btn-sm btn-warning fw-semibold" id="compareLink"
+         data-base="{{ url_for('buyer.compare') }}" href="#">{{ t("Compare now") }} <i class="bi bi-arrow-right"></i></a>
+    </div>
+  </div>
+</div>
+{% endblock %}
